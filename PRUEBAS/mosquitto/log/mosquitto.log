@@ -127,3 +127,8 @@
 1757453588: Saving in-memory database to /mosquitto/data//mosquitto.db.
 1757453649: Saving in-memory database to /mosquitto/data//mosquitto.db.
 1757453710: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1757453747: Client auto-CC24B834-DB37-1E5B-63EC-C81EC974F567 disconnected.
+1757453749: New connection from 172.19.0.4:32897 on port 1883.
+1757453749: New client connected from 172.19.0.4:32897 as auto-AA23BF17-584B-3A39-0FB4-A57D8EB92C42 (p2, c1, k60).
+1757453771: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1757453832: Saving in-memory database to /mosquitto/data//mosquitto.db.
