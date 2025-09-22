@@ -1,0 +1,107 @@
+import express from 'express';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import { swaggerUi, specs } from './swagger';
+import { log } from './colors/theme';
+import sequelize from './config/database';
+import './models'; // ✅ Ejecuta las asociaciones de los modelos
+
+// Importa los routers directamente
+import authRoutes from './routes/auth';
+import sitesRoutes from './routes/sites';
+import raspberryRoutes from './routes/raspberries';
+
+dotenv.config();
+
+export const app = express();
+export const PORT = process.env.BACKEND_PORT || 8000;
+
+// Configuración de CORS
+app.use(
+  cors({
+    origin: [
+      process.env.FRONTEND_SHORT_URL || 'http://localhost:2000',
+      process.env.FRONTEND_COMPLETE_URL || 'http://localhost:5173',
+      'http://100.125.134.87:2000',
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+);
+
+// Middlewares para parsear JSON y URL encoded
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Middleware de logging para desarrollo
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    log.info(`📝 ${req.method} ${req.path}`, {
+      body: req.body,
+      origin: req.headers.origin,
+      userAgent: req.headers['user-agent']?.substring(0, 50)
+    });
+    next();
+  });
+}
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
+// ✅ Rutas principales conectadas directamente
+app.use('/api/auth', authRoutes); // Todas las rutas de auth empezarán con /api/auth
+app.use('/api/sites', sitesRoutes); // Todas las rutas de sites empezarán con /api/sites
+app.use('/api/raspberries', raspberryRoutes); // Todas las rutas de raspberries empezarán con /api/raspberries
+
+// Middleware de manejo de errores global
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  log.error('❌ Error no manejado:', err);
+  res.status(500).json({
+    error: 'Error interno del servidor',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Algo salió mal'
+  });
+});
+
+// Middleware para rutas no encontradas
+app.use((req: express.Request, res: express.Response) => {
+  res.status(404).json({
+    error: 'Ruta no encontrada',
+    path: req.originalUrl,
+    method: req.method
+  });
+});
+
+// Arranque del servidor
+app.listen(PORT, async () => {
+  try {
+    await sequelize.authenticate();
+    log.success('✅ Conexión a la base de datos establecida.');
+    
+    // Sincroniza los modelos (ideal para desarrollo)
+    await sequelize.sync({ alter: true });
+    console.log('🔄 Modelos sincronizados con la base de datos.');
+    
+    const TAILSCALE_URL = process.env.TAILSCALE_SHORT_URL || process.env.TAILSCALE_COMPLETE_URL || 'http://localhost';
+    
+    log.success(`🚀 Servidor corriendo en ${TAILSCALE_URL}:${PORT}`);
+    console.log(`📖 Swagger docs: ${TAILSCALE_URL}:${PORT}/api-docs`);
+    
+  } catch (error) {
+    log.error('❌ Error al iniciar el servidor:', error);
+    process.exit(1);
+  }
+});
+
+// Manejo de señales para cierre graceful
+process.on('SIGTERM', async () => {
+  console.log('📴 Recibida señal SIGTERM, cerrando servidor...');
+  await sequelize.close();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('📴 Recibida señal SIGINT, cerrando servidor...');
+  await sequelize.close();
+  process.exit(0);
+});

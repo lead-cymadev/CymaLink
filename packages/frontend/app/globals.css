@@ -1,0 +1,181 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Integrating CymaLink brand colors with improved contrast and semantic naming */
+
+  /* Brand Colors - Base Palette */
+  --brand-blue: #429bdb; /* Primary brand blue */
+  --brand-blue-dark: #2e72b7; /* Darker blue for depth */
+  --brand-navy: #10304b; /* Deep navy for text/backgrounds */
+  --brand-red: #db4549; /* Accent red for CTAs */
+
+  /* Semantic Color System - Light Mode */
+  --background: #fbfdfc; /* Almost white background */
+  --foreground: var(--brand-navy); /* Navy text for excellent readability */
+  --card: #ffffff; /* Pure white cards */
+  --card-foreground: var(--brand-navy);
+  --popover: #ffffff;
+  --popover-foreground: var(--brand-navy);
+  --primary: var(--brand-blue); /* Primary actions */
+  --primary-foreground: #ffffff; /* White text on blue */
+  --secondary: #f1f8fd; /* Light blue tint */
+  --secondary-foreground: var(--brand-blue-dark);
+  --muted: #f8fafb; /* Subtle background */
+  --muted-foreground: #64748b; /* Muted text */
+  --accent: var(--brand-red); /* Red for highlights */
+  --accent-foreground: #ffffff; /* White text on red */
+  --destructive: #dc2626; /* Error red */
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0; /* Light borders */
+  --input: #f8fafc; /* Input backgrounds */
+  --ring: var(--brand-blue); /* Focus rings */
+
+  /* Chart colors using brand palette */
+  --chart-1: var(--brand-blue);
+  --chart-2: var(--brand-red);
+  --chart-3: var(--brand-blue-dark);
+  --chart-4: #10b981; /* Success green */
+  --chart-5: #f59e0b; /* Warning amber */
+
+  --radius: 0.625rem;
+
+  /* Sidebar colors */
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--brand-blue);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--secondary);
+  --sidebar-accent-foreground: var(--brand-blue-dark);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+.dark {
+  /* Dark mode using navy background with improved contrast */
+  --background: var(--brand-navy); /* Navy background */
+  --foreground: #f8fafc; /* Light text */
+  --card: #1e293b; /* Slightly lighter than background */
+  --card-foreground: #f8fafc;
+  --popover: #1e293b;
+  --popover-foreground: #f8fafc;
+  --primary: var(--brand-blue); /* Blue stays vibrant in dark */
+  --primary-foreground: #ffffff;
+  --secondary: #334155; /* Darker secondary */
+  --secondary-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: var(--brand-red); /* Red accent stays strong */
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444; /* Brighter red for dark mode */
+  --destructive-foreground: #ffffff;
+  --border: #334155; /* Subtle borders */
+  --input: #1e293b;
+  --ring: var(--brand-blue);
+
+  /* Chart colors adjusted for dark mode */
+  --chart-1: var(--brand-blue);
+  --chart-2: var(--brand-red);
+  --chart-3: #60a5fa; /* Lighter blue variant */
+  --chart-4: #34d399; /* Brighter green */
+  --chart-5: #fbbf24; /* Brighter amber */
+
+  /* Sidebar dark mode */
+  --sidebar: #0f172a; /* Even darker for sidebar */
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: var(--brand-blue);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #334155;
+  --sidebar-ring: var(--brand-blue);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Adding smooth transitions for theme switching */
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Adding utility classes for brand colors */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-brand-blue {
+    color: var(--brand-blue);
+  }
+
+  .text-brand-navy {
+    color: var(--brand-navy);
+  }
+
+  .text-brand-red {
+    color: var(--brand-red);
+  }
+
+  .bg-brand-blue {
+    background-color: var(--brand-blue);
+  }
+
+  .bg-brand-navy {
+    background-color: var(--brand-navy);
+  }
+
+  .bg-brand-red {
+    background-color: var(--brand-red);
+  }
+
+  .border-brand-blue {
+    border-color: var(--brand-blue);
+  }
+}
