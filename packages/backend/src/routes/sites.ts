@@ -5,14 +5,14 @@ import { User } from '../models/User';
 import { Site } from '../models/Site';
 import { Raspberry } from '../models/Raspberry';
 import { Status } from '../models/Status';
-import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
+// ✅ Importamos ambos middlewares
+import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// RUTA PARA EL DASHBOARD
-// GET /
-// NOTA: La ruta es solo "/" porque el prefijo "/sites" se lo daremos en index.ts
-
+// --- RUTA PARA USUARIOS REGULARES ---
+// GET /api/sites/
+// Devuelve solo los sitios asignados al usuario que hace la petición.
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -27,10 +27,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         },
         {
           model: Raspberry,
-          include: [{
-            model: Status,
-            attributes: ['nombre']
-          }]
+          include: [{ model: Status, attributes: ['nombre'] }]
         }
       ]
     });
@@ -43,6 +40,34 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
   } catch (error) {
     console.error('❌ Error al obtener los sitios del dashboard:', error);
+    res.status(500).json({ success: false, message: 'Error del servidor' });
+  }
+});
+
+// --- NUEVA RUTA PARA ADMINISTRADORES ---
+// GET /api/sites/all
+// Devuelve TODOS los sitios. Protegida para que solo usuarios con rol 'admin' puedan acceder.
+router.get('/all', [authMiddleware, adminMiddleware], async (req: AuthRequest, res: Response) => {
+  try {
+    // La consulta es más simple: no filtramos por usuario.
+    const allSites = await Site.findAll({
+      include: [
+        {
+          model: Raspberry,
+          include: [{ model: Status, attributes: ['nombre'] }]
+        },
+        { // Opcional: incluimos los usuarios de cada sitio para más contexto
+          model: User,
+          attributes: ['id', 'nombre', 'email'],
+          through: { attributes: [] }
+        }
+      ]
+    });
+
+    res.status(200).json({ success: true, data: allSites });
+
+  } catch (error) {
+    console.error('❌ Error al obtener todos los sitios para admin:', error);
     res.status(500).json({ success: false, message: 'Error del servidor' });
   }
 });

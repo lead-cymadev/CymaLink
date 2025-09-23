@@ -8,6 +8,7 @@ import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 const router = Router();
 
 // --- RUTA PARA CREAR UN NUEVO DISPOSITIVO (POST /) ---
+// Esta es la ruta que usará nuestro nuevo modal.
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { nombre, macAddress, ipAddress, siteId } = req.body;
   const userId = req.user?.id;
@@ -22,22 +23,25 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'El sitio especificado no existe.' });
     }
     
+    // Verificamos que el usuario que hace la petición tiene acceso al sitio
     const userHasAccess = (site as any).Users.some((user: User) => user.id === userId);
     if (!userHasAccess) {
       return res.status(403).json({ success: false, message: 'Acceso denegado. No tienes permisos sobre este sitio.' });
     }
     
+    // Buscamos el estado por defecto 'Offline'
     const defaultStatus = await Status.findOne({ where: { nombre: 'Offline' } });
     if (!defaultStatus) {
+        // Este es un error de configuración del servidor, no del usuario
         return res.status(500).json({ success: false, message: 'Error de configuración: Estado por defecto no encontrado.' });
     }
 
     const newRaspberry = await Raspberry.create({
       nombre,
       macAddress,
-      ipAddress: ipAddress || 'N/A',
+      ipAddress: ipAddress || 'N/A', // Si no se provee IP, se guarda 'N/A'
       siteId,
-      statusId: defaultStatus.id
+      statusId: defaultStatus.id // Se asigna el ID del estado 'Offline'
     });
 
     res.status(201).json({ success: true, message: 'Dispositivo registrado exitosamente.', data: newRaspberry });
@@ -122,3 +126,4 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
 });
 
 export default router;
+

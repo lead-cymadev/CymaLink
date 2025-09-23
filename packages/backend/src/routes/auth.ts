@@ -46,10 +46,10 @@ router.post('/register', async (req: Request, res: Response) => {
     const userData = newUser.toJSON();
     delete userData.password;
 
-    console.log(`✅ Usuario registrado: ${nombre} (${email})`);
+    //console.log(`✅ Usuario registrado: ${nombre} (${email})`);
     res.status(201).json({ success: true, message: 'Usuario registrado exitosamente', data: userData });
   } catch (error) {
-    console.error('❌ Error en register:', error);
+    //console.error('❌ Error en register:', error);
     res.status(500).json({ success: false, message: 'Error del servidor' });
   }
 });
@@ -97,10 +97,10 @@ router.post('/login', async (req: Request, res: Response) => {
     const userData = user.toJSON();
     delete userData.password;
 
-    console.log(`✅ Usuario autenticado: ${user.nombre} (${user.email})`);
+    //console.log(`✅ Usuario autenticado: ${user.nombre} (${user.email})`);
     res.status(200).json({ success: true, message: 'Inicio de sesión exitoso', access_token, user: userData });
   } catch (error) {
-    console.error('❌ Error en login:', error);
+    //console.error('❌ Error en login:', error);
     res.status(500).json({ success: false, message: 'Error del servidor' });
   }
 });
@@ -166,10 +166,10 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 
     await resetToken.destroy();
 
-    console.log(`✅ Contraseña actualizada para: ${user.email}`);
+    //console.log(`✅ Contraseña actualizada para: ${user.email}`);
     res.status(200).json({ success: true, message: 'Contraseña actualizada exitosamente' });
   } catch (error) {
-    console.error('❌ Error en reset-password:', error);
+    //console.error('❌ Error en reset-password:', error);
     res.status(500).json({ success: false, message: 'Error del servidor' });
   }
 });

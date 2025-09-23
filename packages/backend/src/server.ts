@@ -1,15 +1,15 @@
+// src/server.ts
+
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { swaggerUi, specs } from './swagger';
 import { log } from './colors/theme';
 import sequelize from './config/database';
-import './models'; // ✅ Ejecuta las asociaciones de los modelos
+import './models'; // Ejecuta las asociaciones de los modelos
 
-// Importa los routers directamente
-import authRoutes from './routes/auth';
-import sitesRoutes from './routes/sites';
-import raspberryRoutes from './routes/raspberries';
+// ✅ Se importa el enrutador principal desde la carpeta de rutas
+import apiRouter from './routes';
 
 dotenv.config();
 
@@ -49,10 +49,8 @@ if (process.env.NODE_ENV === 'development') {
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// ✅ Rutas principales conectadas directamente
-app.use('/api/auth', authRoutes); // Todas las rutas de auth empezarán con /api/auth
-app.use('/api/sites', sitesRoutes); // Todas las rutas de sites empezarán con /api/sites
-app.use('/api/raspberries', raspberryRoutes); // Todas las rutas de raspberries empezarán con /api/raspberries
+// ✅ Se montan TODAS las rutas bajo el prefijo /api
+app.use('/api', apiRouter);
 
 // Middleware de manejo de errores global
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -78,7 +76,6 @@ app.listen(PORT, async () => {
     await sequelize.authenticate();
     log.success('✅ Conexión a la base de datos establecida.');
     
-    // Sincroniza los modelos (ideal para desarrollo)
     await sequelize.sync({ alter: true });
     console.log('🔄 Modelos sincronizados con la base de datos.');
     
