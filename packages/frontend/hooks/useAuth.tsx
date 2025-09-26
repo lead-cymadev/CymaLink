@@ -1,5 +1,5 @@
 // hooks/useAuth.ts
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { apiService } from '../services/apiService';
 
 type User = {
@@ -26,18 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay un usuario guardado en localStorage
     const initAuth = async () => {
       try {
         if (apiService.isAuthenticated()) {
           const userData = apiService.getCurrentUser();
           if (userData) {
-            // Verificar que el token sigue siendo válido obteniendo el perfil
             try {
               const profile = await apiService.getProfile();
               setUser(profile);
             } catch (error) {
-              // Token inválido, limpiar
               apiService.logout();
               setUser(null);
             }
@@ -110,44 +107,64 @@ export function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchDashboardData = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
     }
+    
+    try {
+      setLoading(true);
+      setError(null);
 
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+      // --- MODIFICACIÓN PARA MEJORAR EL DIAGNÓSTICO DE ERRORES ---
+      // Se manejan las promesas individualmente para identificar cuál de ellas está fallando.
+      const sitesPromise = (isAdmin ? apiService.getAllSites() : apiService.getSites())
+        .catch(error => {
+          console.error('Error al obtener los sitios (sites):', error);
+          // Devuelve un valor por defecto para que Promise.all no falle por completo.
+          return []; 
+        });
 
-        // Hacer todas las peticiones en paralelo
-        const [sitesData, statsData, alertsData] = await Promise.all([
-          isAdmin ? apiService.getAllSites() : apiService.getSites(),
-          apiService.getDashboardStats(),
-          apiService.getAlerts()
-        ]);
+      const statsPromise = apiService.getDashboardStats()
+        .catch(error => {
+          console.error('Error al obtener las estadísticas (stats):', error);
+          return null;
+        });
 
-        setSites(sitesData);
-        setStats(statsData);
-        setAlerts(alertsData);
+      const alertsPromise = apiService.getAlerts()
+        .catch(error => {
+          console.error('Error al obtener las alertas (alerts):', error);
+          return [];
+        });
 
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-        console.error('Dashboard fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      // Promise.all ahora recibirá promesas que no se rechazan,
+      // permitiendo que la aplicación continúe y mostrando qué datos sí se pudieron cargar.
+      const [sitesData, statsData, alertsData] = await Promise.all([
+        sitesPromise,
+        statsPromise,
+        alertsPromise
+      ]);
 
-    fetchDashboardData();
-  }, [user, isAdmin]);
+      setSites(sitesData);
+      setStats(statsData);
+      setAlerts(alertsData);
 
-  const refetch = async () => {
-    if (user) {
-      await fetchDashboardData();
+    } catch (err) {
+      // Este bloque catch general ahora es menos probable que se active por fallos de red,
+      // pero se mantiene por si ocurre otro tipo de error inesperado.
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+      console.error('Error general en fetchDashboardData:', err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [user, isAdmin]); // Las dependencias aseguran que la función se actualice si el usuario o su rol cambian.
 
-  return { sites, stats, alerts, loading, error, refetch };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]); // useEffect ahora depende de la función memoizada.
+
+  return { sites, stats, alerts, loading, error, refetch: fetchDashboardData };
 }
+

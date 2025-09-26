@@ -16,19 +16,36 @@ dotenv.config();
 export const app = express();
 export const PORT = process.env.BACKEND_PORT || 8000;
 
-// Configuración de CORS
-app.use(
-  cors({
-    origin: [
-      process.env.FRONTEND_SHORT_URL || 'http://localhost:2000',
-      process.env.FRONTEND_COMPLETE_URL || 'http://localhost:5173',
-      'http://100.125.134.87:2000',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  })
-);
+// --- CONFIGURACIÓN DE CORS MEJORADA ---
+// Lista de orígenes permitidos.
+const allowedOrigins = [
+  process.env.FRONTEND_SHORT_URL || 'http://localhost:2000',
+  process.env.FRONTEND_COMPLETE_URL || 'http://localhost:5173',
+  'http://100.125.134.87:2000',
+];
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Permite solicitudes sin origen (p. ej., Postman, apps móviles)
+    if (!origin) return callback(null, true);
+
+    // Si el origen de la solicitud está en nuestra lista blanca, permítelo.
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // Si no, recházalo.
+      callback(new Error('No permitido por la política de CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
+// Se aplica el middleware de CORS con la nueva configuración.
+app.use(cors(corsOptions));
+// Habilitamos la respuesta a las solicitudes de verificación previa (preflight) para todas las rutas.
+app.options('/', cors(corsOptions));
 
 // Middlewares para parsear JSON y URL encoded
 app.use(express.json({ limit: '10mb' }));
@@ -102,3 +119,4 @@ process.on('SIGINT', async () => {
   await sequelize.close();
   process.exit(0);
 });
+

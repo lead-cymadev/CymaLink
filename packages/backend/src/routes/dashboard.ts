@@ -4,9 +4,7 @@ import { User } from '../models/User';
 import { Site } from '../models/Site';
 import { Raspberry } from '../models/Raspberry';
 import { Status } from '../models/Status';
-import { Rol } from '../models/Rol';
-import { StatusLog } from '../models/StatusLog';
-import { authMiddleware, adminMiddleware, AuthRequest } from '../middleware/authMiddleware';
+import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
 import { Op } from 'sequelize';
 
 const router = Router();
@@ -19,7 +17,6 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
 
     let sites: Site[];
     
-    // Obtener sitios según el rol del usuario
     if (userRole === 'admin') {
       sites = await Site.findAll({
         include: [{
@@ -34,7 +31,8 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
             model: User,
             where: { id: userId },
             attributes: [],
-            through: { attributes: [] }
+            through: { attributes: [] },
+            // required: true no es necesario aquí porque el 'where' está en el nivel superior de la asociación
           },
           {
             model: Raspberry,
@@ -46,15 +44,14 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
 
     // Calcular estadísticas
     const totalSites = sites.length;
-    const allDevices = sites.flatMap(site => site.Raspberry || []);
+    const allDevices = sites.flatMap(site => (site as any).Raspberries || []); 
     const totalDevices = allDevices.length;
     const onlineDevices = allDevices.filter(device => 
-      device.Status?.nombre?.toLowerCase() === 'online'
+      (device as any).Status?.nombre?.toLowerCase() === 'online'
     ).length;
     
     const alerts = totalDevices - onlineDevices;
     
-    // Calcular salud del sistema
     const healthPercentage = totalDevices > 0 ? (onlineDevices / totalDevices) * 100 : 100;
     let systemHealth = 'Crítico';
     if (healthPercentage >= 90) systemHealth = 'Excelente';
@@ -78,35 +75,6 @@ router.get('/stats', authMiddleware, async (req: AuthRequest, res: Response) => 
   }
 });
 
-// --- RUTA PARA OBTENER PERFIL DEL USUARIO ACTUAL ---
-router.get('/profile', authMiddleware, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-
-    const user = await User.findByPk(userId, {
-      include: [{ model: Rol, attributes: ['NombreRol'] }],
-      attributes: ['id', 'nombre', 'email', 'activo', 'createdAt']
-    });
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-    }
-
-    const userData = {
-      id: user.id,
-      nombre: user.nombre,
-      email: user.email,
-      rol: (user as any).Rol.NombreRol,
-      activo: user.activo,
-    };
-
-    res.status(200).json({ success: true, data: userData });
-
-  } catch (error) {
-    console.error('❌ Error al obtener perfil del usuario:', error);
-    res.status(500).json({ success: false, message: 'Error del servidor' });
-  }
-});
 
 // --- RUTA PARA OBTENER DISPOSITIVOS CON ALERTAS ---
 router.get('/alerts', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -116,38 +84,29 @@ router.get('/alerts', authMiddleware, async (req: AuthRequest, res: Response) =>
 
     let alertDevices: Raspberry[];
     
-    // Buscar dispositivos offline
     if (userRole === 'admin') {
       alertDevices = await Raspberry.findAll({
         include: [
-          {
-            model: Status,
-            where: { nombre: { [Op.ne]: 'Online' } },
-            attributes: ['nombre']
-          },
-          {
-            model: Site,
-            attributes: ['nombre', 'ubicacion']
-          }
+          { model: Status, where: { nombre: { [Op.ne]: 'Online' } }, attributes: ['nombre'] },
+          { model: Site, attributes: ['nombre', 'ubicacion'] }
         ]
       });
     } else {
       alertDevices = await Raspberry.findAll({
+        where: {}, // Aseguramos que la consulta principal es sobre Raspberry
         include: [
-          {
-            model: Status,
-            where: { nombre: { [Op.ne]: 'Online' } },
-            attributes: ['nombre']
-          },
+          { model: Status, where: { nombre: { [Op.ne]: 'Online' } }, attributes: ['nombre'] },
           {
             model: Site,
+            attributes: ['nombre', 'ubicacion'],
+            required: true,
             include: [{
               model: User,
               where: { id: userId },
               attributes: [],
-              through: { attributes: [] }
-            }],
-            attributes: ['nombre', 'ubicacion']
+              through: { attributes: [] },
+              required: true,
+            }]
           }
         ]
       });
@@ -158,10 +117,10 @@ router.get('/alerts', authMiddleware, async (req: AuthRequest, res: Response) =>
       nombre: device.nombre,
       macAddress: device.macAddress,
       ipAddress: device.ipAddress,
-      status: device.statusId?.nombre || 'Unknown',
-      siteName: (device as any).Site?.nombre || 'Unknown',
+      status: (device as any).Status?.nombre || 'Unknown', 
+      siteName: (device as any).Site?.nombre || 'Unknown', 
       siteLocation: (device as any).Site?.ubicacion || 'Unknown',
-      updatedAt: device.updatedAt
+      updatedAt: (device as any).updatedAt
     }));
 
     res.status(200).json({ success: true, data: alerts });
@@ -178,7 +137,6 @@ router.get('/activity', authMiddleware, async (req: AuthRequest, res: Response) 
     const userId = req.user?.id;
     const userRole = req.user?.rol;
 
-    // Obtener dispositivos recientemente actualizados
     let recentActivity: Raspberry[];
     
     if (userRole === 'admin') {
@@ -196,13 +154,17 @@ router.get('/activity', authMiddleware, async (req: AuthRequest, res: Response) 
           { model: Status, attributes: ['nombre'] },
           {
             model: Site,
+            attributes: ['nombre', 'ubicacion'],
+            // CORRECCIÓN CLAVE AQUÍ
+            required: true,
             include: [{
               model: User,
               where: { id: userId },
               attributes: [],
-              through: { attributes: [] }
-            }],
-            attributes: ['nombre', 'ubicacion']
+              through: { attributes: [] },
+              // Y AQUÍ
+              required: true,
+            }]
           }
         ],
         order: [['updatedAt', 'DESC']],
@@ -213,10 +175,10 @@ router.get('/activity', authMiddleware, async (req: AuthRequest, res: Response) 
     const activity = recentActivity.map(device => ({
       id: device.id,
       nombre: device.nombre,
-      status: device.Status?.nombre || 'Unknown',
+      status: (device as any).Status?.nombre || 'Unknown',
       siteName: (device as any).Site?.nombre || 'Unknown',
       siteLocation: (device as any).Site?.ubicacion || 'Unknown',
-      updatedAt: device.updatedAt
+      updatedAt: (device as any).updatedAt
     }));
 
     res.status(200).json({ success: true, data: activity });
