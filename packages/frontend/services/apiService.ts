@@ -1,176 +1,85 @@
-// services/apiService.ts
-class ApiService {
+import Cookies from 'js-cookie';
+import { API_BASE_URL } from '@/lib/api/apiConfig';
+
+// Tipos mínimos (ajústalos si ya los tienes centralizados)
+type Status = { id?: number; nombre: string };
+type Device = { id:number; nombre:string; macAddress:string; ipAddress:string|null; statusId?: number|null; siteId?: number; Status?: Status };
+type User = { id:number; nombre:string; email:string; rol?: string; idRol?: number; Rol?: { NombreRol:string } };
+type Site = { id:number; nombre:string; ubicacion:string; raspberries?: Device[]; Raspberries?: Device[]; users?: User[]; Users?: User[] };
+type DashboardStats = { totalSites:number; onlineDevices:number; totalDevices:number; alerts:number; systemHealth:string; healthPercentage?:number };
+
+export default class ApiService {
   private baseUrl: string;
-  private token: string | null = null;
-
-  constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-    
-    // Intentar obtener token del localStorage al inicializar
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('token');
-    }
+  constructor(baseUrl = API_BASE_URL) {
+    this.baseUrl = baseUrl; // ← incluye /api
   }
-
-  setToken(token: string) {
-    this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('token', token);
-    }
+  private get token() {
+    return Cookies.get('access_token') || null;
   }
-
-  removeToken() {
-    this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    }
-  }
-
   private async fetch(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}${endpoint}`;
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
-        ...options.headers,
-      },
-      ...options,
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      ...(options.headers || {}),
     };
+    const res = await fetch(url, { ...options, headers, credentials: 'include' });
 
-    try {
-      const response = await fetch(url, config);
-      
-      // Si el token ha expirado, limpiar y redirigir
-      if (response.status === 401) {
-        this.removeToken();
-        // En una app real, aquí redirigirías al login
-        throw new Error('Sesión expirada');
-      }
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP Error ${response.status}`);
-      }
-      
-      return data;
-    } catch (error) {
-      console.error(`API Error (${endpoint}):`, error);
-      throw error;
+    if (res.status === 204) return { success: true, data: null };
+    let payload: any = null;
+    try { payload = await res.json(); } catch {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return { success: true, data: null };
     }
-  }
-
-  // --- AUTENTICACIÓN ---
-  async login(email: string, password: string) {
-    const response = await this.fetch('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    
-    if (response.success && response.access_token) {
-      this.setToken(response.access_token);
-      
-      // También guardar información del usuario
-      if (typeof window !== 'undefined' && response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
+    if (!res.ok) {
+      const msg = payload?.message || `HTTP ${res.status}`;
+      const err = new Error(msg) as Error & { status?: number };
+      (err as any).status = res.status;
+      throw err;
     }
-    
-    return response;
+    return (typeof payload === 'object' && 'data' in payload) ? payload : { success: true, data: payload };
   }
 
-  async register(nombre: string, email: string, password: string) {
-    return await this.fetch('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ nombre, email, password }),
-    });
-  }
+  // Sites (listas)
+  getSitesForUser(): Promise<Site[]> { return this.fetch('/sites').then(r => r.data || []); }
+  getAllSitesForAdmin(): Promise<Site[]> { return this.fetch('/sites/all').then(r => r.data || []); }
 
-  async logout() {
-    this.removeToken();
-    // En una app real, aquí podrías hacer una llamada al servidor para invalidar el token
-  }
+  // Dashboard
+  getDashboardStats(): Promise<DashboardStats> { return this.fetch('/dashboard/stats').then(r => r.data); }
 
-  // --- DASHBOARD ---
-  async getDashboardStats() {
-    const response = await this.fetch('/dashboard/stats');
-    return response.data;
+  // Sites (CRUD)
+  createSite(payload: { nombre:string; ubicacion?:string; userIds?:number[]; raspberries?: Array<{ nombre:string; macAddress:string; ipAddress?:string; statusId?:number }> }) {
+    return this.fetch('/sites', { method: 'POST', body: JSON.stringify(payload) }).then(r => r.data);
   }
-
-  async getProfile() {
-    const response = await this.fetch('/dashboard/profile');
-    return response.data;
+  updateSite(id:number, payload: { nombre?:string; ubicacion?:string; userIds?:number[] }) {
+    return this.fetch(`/sites/${id}`, { method: 'PUT', body: JSON.stringify(payload) }).then(r => r.data);
   }
+  deleteSite(id:number) { return this.fetch(`/sites/${id}`, { method: 'DELETE' }).then(() => true); }
 
-  async getAlerts() {
-    const response = await this.fetch('/dashboard/alerts');
-    return response.data || [];
+  // Usuarios en Site
+  getSiteUsers(siteId:number) { return this.fetch(`/sites/${siteId}/users`).then(r => r.data as Array<{id:number; nombre:string; email:string}>); }
+  assignUserByEmail(siteId:number, email:string) {
+    return this.fetch(`/sites/${siteId}/users/by-email`, { method: 'POST', body: JSON.stringify({ email }) });
   }
-
-  async getRecentActivity() {
-    const response = await this.fetch('/dashboard/activity');
-    return response.data || [];
+  addUsersToSite(id:number, userIds:number[]) {
+    return this.fetch(`/sites/${id}/users`, { method: 'POST', body: JSON.stringify({ userIds }) }).then(r => r.data);
   }
+  removeUserFromSite(id:number, userId:number) { return this.fetch(`/sites/${id}/users/${userId}`, { method: 'DELETE' }).then(() => true); }
 
-  // --- SITIOS ---
-  async getSites() {
-    const response = await this.fetch('/sites/');
-    return response.data || [];
+  // Devices en Site
+  getSiteDevices(siteId:number) {
+    return this.fetch(`/sites/${siteId}/devices`).then(r => r.data as Array<{ id:number; nombre:string; macAddress:string; ipAddress:string|null; statusId:number|null; siteId:number; Status?: { id:number; nombre:string } }>);
   }
-
-  async getAllSites() {
-    const response = await this.fetch('/sites/all');
-    return response.data || [];
+  createDevice(siteId:number, payload:{ nombre:string; macAddress:string; ipAddress?:string; statusId?:number }) {
+    return this.fetch(`/sites/${siteId}/devices`, { method: 'POST', body: JSON.stringify(payload) }).then(r => r.data);
   }
-
-  // --- DISPOSITIVOS ---
-  async createDevice(deviceData: {
-    nombre: string;
-    macAddress: string;
-    ipAddress?: string;
-    siteId: number;
-  }) {
-    const response = await this.fetch('/raspberries', {
-      method: 'POST',
-      body: JSON.stringify(deviceData),
-    });
-    return response;
+  bulkCreateDevices(siteId:number, devices:Array<{ nombre:string; macAddress:string; ipAddress?:string; statusId?:number }>) {
+    return this.fetch(`/sites/${siteId}/devices/bulk`, { method: 'POST', body: JSON.stringify({ devices }) }).then(r => r.data);
   }
-
-  async updateDevice(deviceId: number, deviceData: {
-    nombre: string;
-    macAddress: string;
-    ipAddress?: string;
-  }) {
-    const response = await this.fetch(`/raspberries/${deviceId}`, {
-      method: 'PUT',
-      body: JSON.stringify(deviceData),
-    });
-    return response;
+  updateDevice(siteId:number, deviceId:number, payload:{ nombre?:string; macAddress?:string; ipAddress?:string; statusId?:number }) {
+    return this.fetch(`/sites/${siteId}/devices/${deviceId}`, { method: 'PUT', body: JSON.stringify(payload) }).then(r => r.data);
   }
-
-  async deleteDevice(deviceId: number) {
-    const response = await this.fetch(`/raspberries/${deviceId}`, {
-      method: 'DELETE',
-    });
-    return response;
-  }
-
-  // --- UTILIDADES ---
-  isAuthenticated(): boolean {
-    return !!this.token;
-  }
-
-  getCurrentUser() {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('user');
-      return userStr ? JSON.parse(userStr) : null;
-    }
-    return null;
+  deleteDevice(siteId:number, deviceId:number) {
+    return this.fetch(`/sites/${siteId}/devices/${deviceId}`, { method: 'DELETE' }).then(() => true);
   }
 }
-
-// Exportar una instancia singleton
-export const apiService = new ApiService();
-export default ApiService;

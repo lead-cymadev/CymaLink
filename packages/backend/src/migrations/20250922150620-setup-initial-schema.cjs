@@ -2,287 +2,167 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    // El orden de creación es importante por las llaves foráneas
+    const { INTEGER, STRING, BOOLEAN, DATE } = Sequelize;
 
     await queryInterface.createTable('Rol', {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
-      NombreRol: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      }
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
+      NombreRol: { type: STRING, allowNull: false, unique: true },
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') },
+      updatedAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
 
     await queryInterface.createTable('Sites', {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
-      nombre: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      ubicacion: {
-        type: Sequelize.STRING
-      },
-      createdAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      },
-      updatedAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      }
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
+      nombre: { type: STRING, allowNull: false },
+      ubicacion: { type: STRING },
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') },
+      updatedAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
 
     await queryInterface.createTable('Status', {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
-      nombre: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      },
-      descripcion: {
-        type: Sequelize.STRING
-      }
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
+      nombre: { type: STRING, allowNull: false, unique: true },
+      descripcion: { type: STRING },
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') },
+      updatedAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
 
     await queryInterface.createTable('User', {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
-      nombre: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      email: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      },
-      password: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
+      nombre: { type: STRING, allowNull: false },
+      email: { type: STRING, allowNull: false, unique: true },
+      password: { type: STRING, allowNull: false },
       idRol: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Rol',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false,
+        references: { model: 'Rol', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'RESTRICT'
       },
-      activo: {
-        type: Sequelize.BOOLEAN,
-        defaultValue: true
-      },
-      createdAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      },
-      updatedAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      }
+      activo: { type: BOOLEAN, allowNull: false, defaultValue: true },
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') },
+      updatedAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
-    
+
     await queryInterface.createTable('Raspberry', {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
-      nombre: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
-      macAddress: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      },
-      ipAddress: {
-        type: Sequelize.STRING
-      },
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
+      nombre: { type: STRING, allowNull: false },
+      macAddress: { type: STRING, allowNull: false, unique: true },
+      ipAddress: { type: STRING },
       siteId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Sites',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false,
+        references: { model: 'Sites', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'RESTRICT'
       },
       statusId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Status',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false,
+        references: { model: 'Status', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'RESTRICT'
       },
-      createdAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      },
-      updatedAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      }
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') },
+      updatedAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
 
     await queryInterface.createTable('UserSites', {
       idUser: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        references: {
-          model: 'User',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false, primaryKey: true,
+        references: { model: 'User', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'CASCADE'
       },
       idSite: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        references: {
-          model: 'Sites',
-          key: 'id'
-        }
-      }
+        type: INTEGER, allowNull: false, primaryKey: true,
+        references: { model: 'Sites', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'CASCADE'
+      },
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
 
     await queryInterface.createTable('RaspberryConnections', {
       raspberryID_A: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        references: {
-          model: 'Raspberry',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false, primaryKey: true,
+        references: { model: 'Raspberry', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'CASCADE'
       },
       raspberryID_B: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        references: {
-          model: 'Raspberry',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false, primaryKey: true,
+        references: { model: 'Raspberry', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'CASCADE'
       },
-      signalStrength: {
-        type: Sequelize.INTEGER
-      }
+      signalStrength: { type: INTEGER },
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
 
     await queryInterface.createTable('SensorData', {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
       raspberryID: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Raspberry',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false,
+        references: { model: 'Raspberry', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'CASCADE'
       },
-      timestamp: {
-        type: Sequelize.DATE,
-        allowNull: false
-      },
-      tipo: {
-        type: Sequelize.STRING
-      },
-      valor: {
-        type: Sequelize.STRING
-      }
+      timestamp: { type: DATE, allowNull: false, defaultValue: Sequelize.fn('NOW') },
+      tipo: { type: STRING, allowNull: false },
+      valor: { type: STRING, allowNull: false }
     });
 
     await queryInterface.createTable('StatusLog', {
-       id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
       raspberryID: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Raspberry',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false,
+        references: { model: 'Raspberry', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'CASCADE'
       },
       statusID: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'Status',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false,
+        references: { model: 'Status', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'RESTRICT'
       },
-      timestamp: {
-        type: Sequelize.DATE,
-        allowNull: false
-      },
-      notas: {
-        type: Sequelize.STRING
-      }
+      timestamp: { type: DATE, allowNull: false, defaultValue: Sequelize.fn('NOW') },
+      notas: { type: STRING }
     });
 
     await queryInterface.createTable('PasswordResetToken', {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER
-      },
+      id: { allowNull: false, autoIncrement: true, primaryKey: true, type: INTEGER },
       userId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        references: {
-          model: 'User',
-          key: 'id'
-        }
+        type: INTEGER, allowNull: false,
+        references: { model: 'User', key: 'id' },
+        onUpdate: 'CASCADE', onDelete: 'CASCADE'
       },
-      token: {
-        type: Sequelize.STRING,
-        allowNull: false,
-        unique: true
-      },
-      expiresAt: {
-        type: Sequelize.DATE,
-        allowNull: false
-      },
-       createdAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      },
-      updatedAt: {
-        allowNull: false,
-        type: Sequelize.DATE
-      }
+      token: { type: STRING, allowNull: false, unique: true },
+      expiresAt: { type: DATE, allowNull: false },
+      createdAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') },
+      updatedAt: { allowNull: false, type: DATE, defaultValue: Sequelize.fn('NOW') }
     });
+
+    await queryInterface.addIndex('Raspberry', ['siteId', 'statusId']);
+    await queryInterface.addIndex('SensorData', ['raspberryID', { name: 'sensor_data_ts_desc', attribute: 'timestamp', order: 'DESC' }]);
+    await queryInterface.addIndex('SensorData', ['raspberryID', 'tipo', { name: 'sensor_data_ts2_desc', attribute: 'timestamp', order: 'DESC' }]);
+    await queryInterface.addIndex('StatusLog', ['raspberryID', { name: 'statuslog_ts_desc', attribute: 'timestamp', order: 'DESC' }]);
+
+    await queryInterface.sequelize.query(`
+      ALTER TABLE "RaspberryConnections"
+      ADD CONSTRAINT raspberry_conn_no_self CHECK ("raspberryID_A" <> "raspberryID_B");
+    `);
+
+    // PostgreSQL: índice único de par no ordenado (A,B) ~ (B,A)
+    if (queryInterface.sequelize.getDialect() === 'postgres') {
+      await queryInterface.sequelize.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname = 'raspberry_conn_pair_uniq'
+          ) THEN
+            CREATE UNIQUE INDEX raspberry_conn_pair_uniq ON "RaspberryConnections"
+            (
+              LEAST("raspberryID_A","raspberryID_B"),
+              GREATEST("raspberryID_A","raspberryID_B")
+            );
+          END IF;
+        END $$;
+      `);
+    }
   },
 
   async down(queryInterface, Sequelize) {
-    // El orden de borrado es el inverso a la creación
     await queryInterface.dropTable('PasswordResetToken');
     await queryInterface.dropTable('StatusLog');
     await queryInterface.dropTable('SensorData');

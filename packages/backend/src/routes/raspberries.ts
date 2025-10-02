@@ -1,24 +1,28 @@
-import { Router, Response } from 'express';
-import { Raspberry } from '../models/Raspberry';
-import { User } from '../models/User';
-import { Site } from '../models/Site';
-import { Status } from '../models/Status';
-import { authMiddleware, AuthRequest } from '../middleware/authMiddleware';
+import { Router, Request, Response } from 'express';
+import { Raspberry } from '../models/raspberry';
+import { User } from '../models/user';
+import { Sites } from '../models/sites';
+import { Status } from '../models/status';
+import { authMiddleware } from '../middleware/authMiddleware';
+
+interface AuthRequest extends Request {
+  user?: Request['user'];
+}
 
 const router = Router();
 
 // --- RUTA PARA CREAR UN NUEVO DISPOSITIVO (POST /) ---
 // Esta es la ruta que usará nuestro nuevo modal.
-router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/', authMiddleware, async (req: Request, res: Response) => {
   const { nombre, macAddress, ipAddress, siteId } = req.body;
-  const userId = req.user?.id;
+  const userId = (req as AuthRequest).user?.id;
 
   if (!nombre || !macAddress || !siteId) {
     return res.status(400).json({ success: false, message: 'Nombre, MAC Address y Site ID son obligatorios.' });
   }
 
   try {
-    const site = await Site.findByPk(siteId, { include: [User] });
+    const site = await Sites.findByPk(siteId, { include: [User] });
     if (!site) {
       return res.status(404).json({ success: false, message: 'El sitio especificado no existe.' });
     }
@@ -53,9 +57,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 // --- RUTA PARA ACTUALIZAR UN DISPOSITIVO (PUT /:id) ---
-router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const userId = req.user?.id;
+  const userId = (req as AuthRequest).user?.id;
   const { nombre, macAddress, ipAddress } = req.body;
 
   if (!nombre || !macAddress) {
@@ -64,7 +68,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
   try {
     const raspberry = await Raspberry.findByPk(id, {
-      include: [{ model: Site, include: [User] }]
+      include: [{ model: Sites, include: [User] }]
     });
 
     if (!raspberry) {
@@ -95,13 +99,13 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 
 // --- RUTA PARA ELIMINAR UN DISPOSITIVO (DELETE /:id) ---
-router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const userId = req.user?.id;
+  const userId = (req as AuthRequest).user?.id;
 
   try {
     const raspberry = await Raspberry.findByPk(id, {
-      include: [{ model: Site, include: [User] }]
+      include: [{ model: Sites, include: [User] }]
     });
 
     if (!raspberry) {

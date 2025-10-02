@@ -1,122 +1,98 @@
 // src/server.ts
-
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { swaggerUi, specs } from './swagger';
 import { log } from './colors/theme';
 import sequelize from './config/database';
-import './models'; // Ejecuta las asociaciones de los modelos
-
-// ✅ Se importa el enrutador principal desde la carpeta de rutas
-import apiRouter from './routes';
+import './models';                  // registra asociaciones
+import apiRouter from './routes';   // /auth, /sites, /dashboard montados dentro
 
 dotenv.config();
 
 export const app = express();
 export const PORT = process.env.BACKEND_PORT || 8000;
 
-// --- CONFIGURACIÓN DE CORS MEJORADA ---
-// Lista de orígenes permitidos.
-const allowedOrigins = [
-  process.env.FRONTEND_SHORT_URL || 'http://localhost:2000',
-  process.env.FRONTEND_COMPLETE_URL || 'http://localhost:5173',
-  'http://100.125.134.87:2000',
-];
+/** ===== CORS =====
+ *  Usa una lista desde env (coma-separada) + defaults incluyendo http://pruebas:2000
+ */
+const RAW_ORIGINS =
+  process.env.FRONTEND_ORIGINS
+  || [
+       'http://pruebas:2000',
+       'http://localhost:2000',
+       'http://127.0.0.1:2000',
+       process.env.FRONTEND_SHORT_URL || '',
+       process.env.FRONTEND_COMPLETE_URL || ''
+     ].filter(Boolean).join(',');
+
+const ALLOWED_ORIGINS = RAW_ORIGINS.split(',').map(s => s.trim()).filter(Boolean);
 
 const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    // Permite solicitudes sin origen (p. ej., Postman, apps móviles)
-    if (!origin) return callback(null, true);
-
-    // Si el origen de la solicitud está en nuestra lista blanca, permítelo.
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      // Si no, recházalo.
-      callback(new Error('No permitido por la política de CORS'));
-    }
+  origin(origin, cb) {
+    // permite herramientas sin Origin (curl/Postman)
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(new Error(`Origin no permitido por CORS: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Disposition'],
+  maxAge: 86400,
 };
 
-// Se aplica el middleware de CORS con la nueva configuración.
 app.use(cors(corsOptions));
-// Habilitamos la respuesta a las solicitudes de verificación previa (preflight) para todas las rutas.
+// ⚠️ Preflight para TODAS las rutas:
 app.options('/', cors(corsOptions));
 
-// Middlewares para parsear JSON y URL encoded
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Middleware de logging para desarrollo
 if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
+    const rawUa = req.get('User-Agent');
+    const userAgent = typeof rawUa === 'string' ? rawUa.slice(0, 60) : undefined;
+
     log.info(`📝 ${req.method} ${req.path}`, {
-      body: req.body,
       origin: req.headers.origin,
-      userAgent: req.headers['user-agent']?.substring(0, 50)
+      userAgent,
     });
     next();
   });
 }
 
-// Swagger documentation
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// ✅ Se montan TODAS las rutas bajo el prefijo /api
+// ✅ TODAS las rutas de la API bajo /api
 app.use('/api', apiRouter);
 
-// Middleware de manejo de errores global
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+// 404
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Not found', path: req.originalUrl });
+});
+
+// Error handler
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   log.error('❌ Error no manejado:', err);
-  res.status(500).json({
-    error: 'Error interno del servidor',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Algo salió mal'
-  });
+  res.status(500).json({ success: false, message: err?.message || 'Error interno' });
 });
 
-// Middleware para rutas no encontradas
-app.use((req: express.Request, res: express.Response) => {
-  res.status(404).json({
-    error: 'Ruta no encontrada',
-    path: req.originalUrl,
-    method: req.method
-  });
-});
-
-// Arranque del servidor
-app.listen(PORT, async () => {
+// Arranque
+app.listen(Number(PORT), '0.0.0.0', async () => {
   try {
     await sequelize.authenticate();
-    log.success('✅ Conexión a la base de datos establecida.');
-    
+    log.success('✅ DB conectada');
     await sequelize.sync({ alter: true });
-    console.log('🔄 Modelos sincronizados con la base de datos.');
-    
-    const TAILSCALE_URL = process.env.TAILSCALE_SHORT_URL || process.env.TAILSCALE_COMPLETE_URL || 'http://localhost';
-    
-    log.success(`🚀 Servidor corriendo en ${TAILSCALE_URL}:${PORT}`);
-    console.log(`📖 Swagger docs: ${TAILSCALE_URL}:${PORT}/api-docs`);
-    
-  } catch (error) {
-    log.error('❌ Error al iniciar el servidor:', error);
+    const base = process.env.TAILSCALE_SHORT_URL || process.env.TAILSCALE_COMPLETE_URL || `http://pruebas`;
+    log.success(`🚀 API en ${base}:${PORT}`);
+    log.info(`📖 Swagger: ${base}:${PORT}/api-docs`);
+    log.info(`🌐 CORS allowlist: ${ALLOWED_ORIGINS.join(', ')}`);
+  } catch (e) {
+    log.error('❌ Error al iniciar:', e);
     process.exit(1);
   }
 });
-
-// Manejo de señales para cierre graceful
-process.on('SIGTERM', async () => {
-  console.log('📴 Recibida señal SIGTERM, cerrando servidor...');
-  await sequelize.close();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('📴 Recibida señal SIGINT, cerrando servidor...');
-  await sequelize.close();
-  process.exit(0);
-});
-

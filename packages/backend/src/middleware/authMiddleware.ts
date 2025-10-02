@@ -1,19 +1,10 @@
 // src/middleware/authMiddleware.ts
-import { Request, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/User';
-import { Rol } from '../models/Rol';
+import { User } from '../models/user';
+import { Rol } from '../models/rol';
 
-export interface AuthRequest extends Request {
-  user?: {
-    id: number;
-    email: string;
-    nombre: string;
-    rol: string;
-  };
-}
-
-export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware: RequestHandler = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
@@ -23,13 +14,13 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     }
 
     const jwtSecret = process.env.JWT_SECRET || 'ESTE_SECRETO_ES_SOLO_PARA_DESARROLLO';
-    
+
     try {
       const decoded = jwt.verify(token, jwtSecret) as any;
-      
-      // Verificar que el usuario sigue existiendo y está activo
+
       const user = await User.findByPk(decoded.id, {
-        include: [{ model: Rol, attributes: ['NombreRol'] }]
+        attributes: ['id', 'email', 'nombre', 'idRol', 'activo'],
+        include: [{ model: Rol, as: 'rol', attributes: ['NombreRol'] }],
       });
 
       if (!user || !user.activo) {
@@ -40,28 +31,25 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
         id: user.id,
         email: user.email,
         nombre: user.nombre,
-        rol: (user as any).Rol.NombreRol
+        rol: (user as any).rol?.NombreRol || 'usuario',
       };
 
-      next();
-    } catch (jwtError) {
+      return next();
+    } catch {
       return res.status(401).json({ success: false, message: 'Token inválido o expirado' });
     }
-
   } catch (error) {
-    console.error('❌ Error en authMiddleware:', error);
-    res.status(500).json({ success: false, message: 'Error del servidor' });
+    console.error('❌ Error en authMiddleware:', (error as any)?.message);
+    return res.status(500).json({ success: false, message: 'Error del servidor' });
   }
 };
 
-export const adminMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminMiddleware: RequestHandler = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Usuario no autenticado' });
   }
-
   if (req.user.rol !== 'admin') {
     return res.status(403).json({ success: false, message: 'Acceso denegado. Se requieren permisos de administrador.' });
   }
-
-  next();
+  return next();
 };
