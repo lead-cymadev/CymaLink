@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { resolveBackendBaseUrl } from "@/lib/api/apiConfig";
 
 // El componente recibe el token como prop
 export default function ChangePasswordForm({ token }: { token: string }) {
@@ -48,9 +49,13 @@ export default function ChangePasswordForm({ token }: { token: string }) {
     try {
       // **IMPORTANTE**: Llamada a tu API para cambiar la contraseña.
       // El cuerpo debe incluir la nueva contraseña y el token.
-      const response = await fetch("/api/auth/reset-password", {
+      const backendBase = resolveBackendBaseUrl();
+      const cleanBase = backendBase.replace(/\/+$/, "");
+
+      const response = await fetch(`${cleanBase}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ password, token }),
       });
 
