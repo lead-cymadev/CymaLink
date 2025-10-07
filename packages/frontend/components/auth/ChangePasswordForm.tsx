@@ -12,6 +12,16 @@ export default function ChangePasswordForm({ token }: { token: string }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const parseJsonSafe = async (response: Response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -44,19 +54,16 @@ export default function ChangePasswordForm({ token }: { token: string }) {
         body: JSON.stringify({ password, token }),
       });
 
-      const data = await response.json();
+      const data = await parseJsonSafe(response);
 
       if (!response.ok) {
         throw new Error(data.message || "El token es inválido o ha expirado.");
       }
 
       setMessage("¡Contraseña actualizada con éxito! Redirigiendo al login...");
-
-      // Redirigir al usuario al login después de un cambio exitoso
       setTimeout(() => {
         router.push("/auth/login");
-      }, 3000); // Espera 3 segundos antes de redirigir
-
+      }, 2500);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -113,9 +120,9 @@ export default function ChangePasswordForm({ token }: { token: string }) {
 
       <input
         type="submit"
-        value={isSubmitting ? "Cambiando..." : "Cambiar Contraseña"}
-        disabled={isSubmitting || !!message} // Deshabilitar si se está enviando o si ya hay un mensaje de éxito
-        className="w-full cursor-pointer rounded-md bg-blue-950 p-3 font-bold uppercase text-white hover:bg-blue-800 disabled:opacity-50"
+        value={isSubmitting ? "Cambiando..." : "Cambiar contraseña"}
+        disabled={isSubmitting || !!message}
+        className="w-full cursor-pointer rounded-md bg-blue-900 p-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
       />
     </form>
   );

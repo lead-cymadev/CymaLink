@@ -3,6 +3,7 @@ import { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user';
 import { Rol } from '../models/rol';
+import { getJwtSecret } from '../config/jwt';
 
 export const authMiddleware: RequestHandler = async (req, res, next) => {
   try {
@@ -13,7 +14,7 @@ export const authMiddleware: RequestHandler = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Token de acceso requerido' });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'ESTE_SECRETO_ES_SOLO_PARA_DESARROLLO';
+    const jwtSecret = getJwtSecret();
 
     try {
       const decoded = jwt.verify(token, jwtSecret) as any;
@@ -31,7 +32,7 @@ export const authMiddleware: RequestHandler = async (req, res, next) => {
         id: user.id,
         email: user.email,
         nombre: user.nombre,
-        rol: (user as any).rol?.NombreRol || 'usuario',
+        rol: ((user as any).rol?.NombreRol || 'usuario').toLowerCase(),
       };
 
       return next();
@@ -48,7 +49,7 @@ export const adminMiddleware: RequestHandler = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Usuario no autenticado' });
   }
-  if (req.user.rol !== 'admin') {
+  if (req.user.rol?.toLowerCase() !== 'admin') {
     return res.status(403).json({ success: false, message: 'Acceso denegado. Se requieren permisos de administrador.' });
   }
   return next();

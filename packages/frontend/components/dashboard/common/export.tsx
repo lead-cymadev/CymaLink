@@ -1,10 +1,8 @@
 // components/dashboard/common/export.tsx
 "use client";
-import React, { useMemo } from "react";
-import Cookies from "js-cookie";
+import React from "react";
 import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
-import ApiService from "@/lib/api/ApiService";
-import { API_BASE_URL } from "@/lib/api/apiConfig";
+import { apiService } from "@/lib/api/ApiService";
 
 export function QuickActionsBar({
   isAdmin,
@@ -14,14 +12,14 @@ export function QuickActionsBar({
   searchQuery?: string;
 }) {
   const scope: "all" | "mine" = isAdmin ? "all" : "mine";
-  const api = useMemo(() => new ApiService(API_BASE_URL), []);
 
   const download = async (format: "csv" | "xml") => {
     try {
-      const token = Cookies.get("access_token");
-      if (!token) throw new Error("No hay token de sesión");
+      if (!apiService.isAuthenticated()) {
+        throw new Error("No hay una sesión activa");
+      }
 
-      const { blob, filename } = await api.exportSites(format, scope, searchQuery);
+      const { blob, filename } = await apiService.exportSites(format, scope, searchQuery);
 
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");

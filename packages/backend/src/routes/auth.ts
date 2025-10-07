@@ -3,11 +3,13 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken'; // << import único
 import crypto from 'crypto';
+import { Op } from 'sequelize';
 
 import { User } from '../models/user';
 import { Rol } from '../models/rol';
 import { PasswordResetToken } from '../models/passwordresettoken';
 import transporter from '../utils/nodemailer';
+import { getJwtSecret, getJwtExpiry } from '../config/jwt';
 
 // ---- Shim robusto para jsonwebtoken (ESM/CJS) ----
 const JWT_ANY: any = (jwt as any)?.default ?? (jwt as any); // soporta default o objeto
@@ -93,10 +95,10 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Credenciales inválidas' });
     }
 
-    const jwtSecret = (process.env.JWT_SECRET ?? 'ESTE_SECRETO_ES_SOLO_PARA_DESARROLLO') as jwt.Secret;
-    const jwtExpiry = (process.env.JWT_EXPIRY ?? '1h') as import('jsonwebtoken').SignOptions['expiresIn'];
+    const jwtSecret = getJwtSecret() as jwt.Secret;
+    const jwtExpiry = getJwtExpiry() as import('jsonwebtoken').SignOptions['expiresIn'];
 
-    const rolNombre: string = (user as any).rol?.NombreRol || 'usuario';
+    const rolNombre: string = ((user as any).rol?.NombreRol || 'usuario').toLowerCase();
 
     const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: rolNombre };
     const options: import('jsonwebtoken').SignOptions = { expiresIn: jwtExpiry };
@@ -135,20 +137,54 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
         .json({ success: true, message: 'Si el email está registrado, se enviará un enlace de restablecimiento.' });
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hora
 
-    await PasswordResetToken.create({ userId: user.id, token, expiresAt });
+    await PasswordResetToken.destroy({ where: { userId: user.id } });
+    await PasswordResetToken.create({ userId: user.id, token: hashedToken, expiresAt });
+
+    // Limpia tokens expirados antiguos para no acumularlos
+    await PasswordResetToken.destroy({ where: { expiresAt: { [Op.lt]: new Date() } } });
 
     const resetBase = process.env.FRONTEND_SHORT_URL || process.env.FRONTEND_COMPLETE_URL || 'http://localhost:2000';
-    const resetLink = `${resetBase}/auth/reset-password?token=${token}`;
+    const resetLink = `${resetBase}/auth/reset-password?token=${rawToken}`;
     const fromEmail = process.env.SMTP_USER || 'no-reply@example.com';
+
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #1f2937;">
+        <h2 style="color: #1d4ed8;">Solicitud de restablecimiento de contraseña</h2>
+        <p>Hola${user.nombre ? ` ${user.nombre}` : ''},</p>
+        <p>
+          Recibimos una solicitud para restablecer la contraseña de tu cuenta CymaLink. Si fuiste tú,
+          haz clic en el siguiente botón (o copia el enlace en tu navegador) dentro de la próxima hora.
+        </p>
+        <p style="margin: 24px 0; text-align: center;">
+          <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #ef4444; color: #ffffff; text-decoration: none; border-radius: 9999px; font-weight: bold;">
+            Restablecer contraseña
+          </a>
+        </p>
+        <p style="word-break: break-all; font-size: 14px; color: #4b5563;">${resetLink}</p>
+        <p>
+          Si no solicitaste este cambio, simplemente ignora este mensaje. Tu contraseña actual seguirá siendo válida.
+        </p>
+        <p style="margin-top: 32px; font-size: 14px; color: #6b7280;">
+          — Equipo CymaLink
+        </p>
+      </div>
+    `;
 
     await transporter.sendMail({
       from: fromEmail,
       to: normalizedEmail,
       subject: 'Restablecer contraseña',
-      html: `<p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p><a href="${resetLink}">${resetLink}</a><p>Si no solicitaste esto, ignora este mensaje.</p>`,
+      text: `Hola${user.nombre ? ` ${user.nombre}` : ''},\n\n` +
+        'Recibimos una solicitud para restablecer la contraseña de tu cuenta CymaLink. ' +
+        'Si fuiste tú, abre el siguiente enlace dentro de la próxima hora:\n\n' +
+        `${resetLink}\n\n` +
+        'Si no solicitaste este cambio, ignora este mensaje y tu contraseña actual seguirá siendo válida.\n\n' +
+        '— Equipo CymaLink',
+      html: htmlBody,
     });
 
     console.log(`🔑 Email de restablecimiento enviado a: ${normalizedEmail}`);
@@ -169,7 +205,8 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Token y nueva contraseña son obligatorios' });
     }
 
-    const resetToken = await PasswordResetToken.findOne({ where: { token } });
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const resetToken = await PasswordResetToken.findOne({ where: { token: hashedToken } });
     if (!resetToken || resetToken.expiresAt < new Date()) {
       return res.status(400).json({ success: false, message: 'Token inválido o expirado' });
     }

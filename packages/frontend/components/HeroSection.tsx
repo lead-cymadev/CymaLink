@@ -1,7 +1,6 @@
 "use client"
 
 import { motion } from "framer-motion"
-import Logo from "@/components/ui/Logo"
 
 // Definimos los tipos de las props que el componente recibirá
 interface HeroSectionProps {
@@ -29,18 +28,12 @@ export default function HeroSection({ scrollY, opacity }: HeroSectionProps) {
   return (
     <div className="text-center px-4">
       <motion.h1
-        className="text-6xl sm:text-7xl md:text-9xl font-bold transition-opacity duration-100 mb-8 flex items-center justify-center gap-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"
+        className="text-6xl sm:text-7xl md:text-9xl font-bold transition-opacity duration-100 mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"
         style={{
           opacity: opacity,
           transform: `translateY(${scrollY * 0.5}px)`,
         }}
       >
-        <motion.div
-          className="h-24 w-24 sm:h-32 sm:w-32 md:h-52 md:w-52"
-          style={{ transform: `translateY(${scrollY * 0.1}px)` }}
-        >
-          <Logo />
-        </motion.div>
         CymaLink
       </motion.h1>
       <motion.p

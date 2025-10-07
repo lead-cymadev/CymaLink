@@ -1,36 +1,7 @@
-import { useMemo, useState } from 'react';
-import Cookies from 'js-cookie';
-
-const RAW_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_SHORT_URL || "http://localhost:8000";
-const API_BASE_URL = `${RAW_BACKEND_URL.replace(/\/$/, '')}/api`;
-
-class ApiService {
-  private baseUrl: string;
-  private token: string | null = null;
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
-    this.token = Cookies.get("access_token") || null;
-  }
-  private async fetch(endpoint: string, options: RequestInit = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
-      ...(options.headers || {}),
-    };
-    const res = await fetch(url, { ...options, headers });
-    const payload = res.status !== 204 ? await res.json().catch(() => ({})) : { success: true, data: null };
-    if (!res.ok) throw new Error(payload?.message || `HTTP ${res.status}`);
-    return payload;
-  }
-  async createSite(payload: { nombre: string; ubicacion?: string }) {
-    const r = await this.fetch('/sites', { method: 'POST', body: JSON.stringify(payload) });
-    return r.data;
-  }
-}
+import { useState } from 'react';
+import { apiService } from '@/lib/api/ApiService';
 
 export function CreateSiteForm({ onCreated }: { onCreated: () => void }) {
-  const api = useMemo(() => new ApiService(API_BASE_URL), []);
   const [nombre, setNombre] = useState('');
   const [ubicacion, setUbicacion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,7 +13,7 @@ export function CreateSiteForm({ onCreated }: { onCreated: () => void }) {
     if (!nombre.trim()) return setErr('El nombre es obligatorio.');
     try {
       setLoading(true);
-      await api.createSite({ nombre: nombre.trim(), ubicacion: ubicacion.trim() || undefined });
+      await apiService.createSite({ nombre: nombre.trim(), ubicacion: ubicacion.trim() || undefined });
       setNombre('');
       setUbicacion('');
       onCreated();

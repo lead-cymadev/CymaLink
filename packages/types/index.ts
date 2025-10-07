@@ -9,6 +9,9 @@ export interface Raspberry {
   nombre: string;
   macAddress: string;
   ipAddress: string;
+  hostname?: string | null;
+  tailscaleIp?: string | null;
+  tipo?: string | null;
   Status?: Status; // <-- Añade '?' para hacerlo opcional
 }
 
@@ -24,4 +27,9 @@ export interface User {
   nombre: string;
   email: string;
   rol: string;
+  preferredLanguage?: string | null;
+  timezone?: string | null;
+  notifyByEmail?: boolean | null;
+  createdAt?: string;
+  updatedAt?: string;
 }

@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Cookies from "js-cookie"
+import { apiService } from "@/lib/api/ApiService"
 
 export default function LoginForm() {
   const [email, setEmail] = useState("")
@@ -9,7 +9,6 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_SHORT_URL;
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,37 +23,15 @@ export default function LoginForm() {
     setMessage("🔄 Iniciando sesión...")
 
     try {
-      if (!API_BASE_URL) {
-        throw new Error("La URL del backend no está configurada.");
-      }
-      
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password })
-      })
+      const response = await apiService.login(email, password)
 
-      const data = await res.json()
-
-      if (res.ok && data.success) {
+      if (response.success) {
         setMessage("✅ Inicio de sesión exitoso. Redirigiendo...")
 
-        Cookies.set("access_token", data.access_token, { 
-          expires: 1, // Expira en 1 día
-          secure: process.env.NODE_ENV === 'production',
-        });
-
-        if (data.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
-        
-        // Forzamos una recarga completa para asegurar que el servidor lea la nueva cookie
-        window.location.href = "/dashboard";
-
+        // Fuerza recarga completa para que el dashboard tome la sesión recién creada
+        window.location.href = "/dashboard"
       } else {
-        setMessage(`❌ ${data.message || 'Error en el inicio de sesión'}`);
+        setMessage(`❌ ${response.message || 'Error en el inicio de sesión'}`)
       }
 
     } catch (error: any) {
@@ -103,7 +80,7 @@ export default function LoginForm() {
         <button 
           type="submit" 
           disabled={isLoading || !email || !password}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 disabled:cursor-not-allowed"
+          className="w-full rounded-md bg-blue-900 py-2 px-4 font-medium text-white transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
         >
           {isLoading ? (
             <span className="flex items-center justify-center">

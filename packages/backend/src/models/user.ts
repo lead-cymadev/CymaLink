@@ -8,10 +8,16 @@ export interface UserAttributes {
   password: string;
   idRol: number;
   activo: boolean;
+  preferredLanguage?: string | null;
+  timezone?: string | null;
+  notifyByEmail?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
-type UserCreationAttributes = Optional<UserAttributes, 'id' | 'activo' | 'createdAt' | 'updatedAt'>;
+type UserCreationAttributes = Optional<
+  UserAttributes,
+  'id' | 'activo' | 'preferredLanguage' | 'timezone' | 'notifyByEmail' | 'createdAt' | 'updatedAt'
+>;
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: number;
@@ -20,6 +26,9 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   public password!: string;
   public idRol!: number;
   public activo!: boolean;
+  public preferredLanguage!: string | null;
+  public timezone!: string | null;
+  public notifyByEmail!: boolean;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -32,6 +41,9 @@ User.init(
     password: { type: DataTypes.STRING, allowNull: false },
     idRol: { type: DataTypes.INTEGER, allowNull: false },
     activo: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    preferredLanguage: { type: DataTypes.STRING, allowNull: true, defaultValue: 'es' },
+    timezone: { type: DataTypes.STRING, allowNull: true, defaultValue: 'UTC' },
+    notifyByEmail: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW }
   },

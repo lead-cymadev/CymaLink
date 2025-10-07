@@ -1,7 +1,8 @@
 // components/dashboard/common/SiteTable.tsx
 'use client';
 import { EllipsisHorizontalIcon, MapPinIcon } from '@heroicons/react/24/outline';
-import { Device, Site, getDevicesOfSite, getUsersOfSite } from '@/lib/api/ApiService';
+import type { Device, Site } from './types';
+import { getDevicesOfSite, getUsersOfSite } from './helpers';
 
 function StatusBadge({ status }: { status?: string }) {
   const value = status?.toLowerCase();

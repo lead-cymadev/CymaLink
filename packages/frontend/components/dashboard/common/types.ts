@@ -8,6 +8,11 @@ export type User = {
   rol?: UserRole;
   idRol?: number;
   Rol?: { NombreRol: string };
+  preferredLanguage?: string | null;
+  timezone?: string | null;
+  notifyByEmail?: boolean | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Status = { nombre: string };
@@ -17,6 +22,9 @@ export type Device = {
   nombre: string;
   macAddress: string;
   ipAddress: string | null;
+  hostname?: string | null;
+  tailscaleIp?: string | null;
+  tipo?: string | null;
   Status?: Status;
   statusId?: number | null;
   siteId?: number;

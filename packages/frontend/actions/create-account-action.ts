@@ -17,7 +17,9 @@ export async function register(formData: FormData): Promise<void> {
     return
   }
 
-  const url = `${process.env.NEXT_PUBLIC_API_URL}/users-service/auth/register`
+  const { resolveBackendBaseUrl } = await import('@/lib/api/apiConfig');
+  const backendBase = resolveBackendBaseUrl();
+  const url = `${backendBase.replace(/\/+$/, '')}/api/auth/register`;
 
   const req = await fetch(url, {
     method: "POST",

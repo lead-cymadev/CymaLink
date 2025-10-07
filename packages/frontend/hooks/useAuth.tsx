@@ -1,6 +1,7 @@
 // hooks/useAuth.ts
 import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { apiService } from '../services/apiService';
+import type { Site, DashboardStats } from '@/components/dashboard/common/types';
 
 type User = {
   id: number;
@@ -8,6 +9,11 @@ type User = {
   email: string;
   rol: 'admin' | 'usuario';
   activo: boolean;
+  preferredLanguage?: string | null;
+  timezone?: string | null;
+  notifyByEmail?: boolean | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type AuthContextType = {
@@ -101,9 +107,9 @@ export function useAuth() {
 // Hook separado para el dashboard que usa autenticación
 export function useDashboard() {
   const { user, isAdmin } = useAuth();
-  const [sites, setSites] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [alerts, setAlerts] = useState([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,9 +152,9 @@ export function useDashboard() {
         alertsPromise
       ]);
 
-      setSites(sitesData);
-      setStats(statsData);
-      setAlerts(alertsData);
+      setSites(Array.isArray(sitesData) ? (sitesData as Site[]) : []);
+      setStats(statsData ?? null);
+      setAlerts(Array.isArray(alertsData) ? alertsData : []);
 
     } catch (err) {
       // Este bloque catch general ahora es menos probable que se active por fallos de red,
@@ -167,4 +173,3 @@ export function useDashboard() {
 
   return { sites, stats, alerts, loading, error, refetch: fetchDashboardData };
 }
-

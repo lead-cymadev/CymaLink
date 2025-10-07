@@ -1,7 +1,7 @@
 // components/dashboard/admin/AdminDashboard.tsx
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { PlusIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import type { DashboardStats, Site } from "../common/types";
 import { resolveUserRole, getDevicesOfSite, getUsersOfSite } from "../common/helpers";
@@ -9,19 +9,22 @@ import { Sidebar, DashboardTopBar, StatusBadge } from "../common/ui";
 import { SummaryGrid } from "../common/summary";
 import { QuickActionsBar } from "../common/export";
 import { DevicesDirectory, ClientsDirectory } from "./Directories";
+import { TailscaleDevicesPanel, type TailscaleDevice } from "./TailscaleDevices";
+import UserSettingsPanel from "../common/UserSettingsPanel";
 
-import ApiService from "@/lib/api/ApiService";
+import { apiService } from "@/lib/api/ApiService";
 import { AssignUserForm } from "../sites/AssignUserForm";
 import { AddDeviceForm } from "../sites/AddDeviceForm";
 import ManageSiteModal from "../sites/ManageSiteModal";
+import { useI18n, formatMessage } from "@/lib/i18n";
 
-const ADMIN_NAV = ["Overview", "Dispositivos", "Clientes", "Configuración"] as const;
+const ADMIN_NAV = ["overview", "devices", "clients", "settings"] as const;
 type AdminTab = "overview" | "devices" | "clients" | "settings";
-const labelToTab: Record<(typeof ADMIN_NAV)[number], AdminTab> = {
-  Overview: "overview",
-  Dispositivos: "devices",
-  Clientes: "clients",
-  Configuración: "settings",
+const NAV_FALLBACK: Record<(typeof ADMIN_NAV)[number], string> = {
+  overview: "Overview",
+  devices: "Dispositivos",
+  clients: "Clientes",
+  settings: "Configuración",
 };
 
 export default function AdminDashboard({
@@ -30,17 +33,21 @@ export default function AdminDashboard({
   stats,
   onLogout,
   onRefetch,
+  onUserChange,
 }: {
   user: any;
   sites: Site[];
   stats: DashboardStats;
   onLogout: () => void;
   onRefetch: () => void;
+  onUserChange: (user: any) => void;
 }) {
   const [tab, setTab] = useState<AdminTab>("overview");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const createPanelRef = useRef<HTMLDivElement | null>(null);
+  const [currentUser, setCurrentUser] = useState(user);
+  const t = useI18n();
 
   const [activeSite, setActiveSite] = useState<Site | null>(null);
   const [showAssignUser, setShowAssignUser] = useState(false);
@@ -51,17 +58,44 @@ export default function AdminDashboard({
   const [manageDevices, setManageDevices] = useState<
     Array<{ id: number; nombre: string; macAddress: string; ipAddress: string | null; status?: { nombre: string }; Status?: { nombre: string } }>
   >([]);
+  const [tailscaleDevices, setTailscaleDevices] = useState<TailscaleDevice[]>([]);
+  const [tailscaleLoading, setTailscaleLoading] = useState(false);
+  const [tailscaleError, setTailscaleError] = useState<string | null>(null);
 
-  // Asegúrate en .env.local: NEXT_PUBLIC_API_URL=http://pruebas:8000/api
-  const api = useMemo(() => new ApiService(process.env.NEXT_PUBLIC_API_URL ?? "/api"), []);
-  const isAdmin = resolveUserRole(user) === "admin";
+  useEffect(() => {
+    setCurrentUser(user);
+  }, [user]);
 
-  const navItems = ADMIN_NAV.map((label) => ({
-    label,
+  const api = apiService;
+  const activeUser = currentUser ?? user;
+  const isAdmin = resolveUserRole(activeUser) === "admin";
+
+  const navItems = ADMIN_NAV.map((key) => ({
+    label: t(`nav.${key}`, NAV_FALLBACK[key]),
+    value: key,
     icon: PlusIcon,
-    active: labelToTab[label] === tab,
-    onClick: () => setTab(labelToTab[label]),
+    active: key === tab,
+    onClick: () => setTab(key),
   }));
+
+  const loadTailscaleDevices = useMemo(() => async () => {
+    try {
+      setTailscaleLoading(true);
+      setTailscaleError(null);
+      const list = await api.getTailscaleDevices();
+      setTailscaleDevices(list);
+    } catch (error: any) {
+      setTailscaleError(error?.message || "No se pudieron sincronizar los dispositivos de Tailscale.");
+    } finally {
+      setTailscaleLoading(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadTailscaleDevices();
+    }
+  }, [isAdmin, loadTailscaleDevices]);
 
   const openCreate = () => {
     setShowCreate(true);
@@ -139,18 +173,21 @@ export default function AdminDashboard({
   return (
     <div className="flex min-h-screen bg-slate-100 font-sans text-slate-800">
       <Sidebar
-        user={user}
-        roleLabel={"admin"}
+        user={activeUser}
+        roleLabel={'admin'}
         onLogout={onLogout}
-        navItems={navItems as any}
-        onItemClick={(lbl) => setTab(labelToTab[lbl as (typeof ADMIN_NAV)[number]])}
+        navItems={navItems}
+        onItemClick={(value) => setTab((value as AdminTab) ?? "overview")}
       />
 
       <div className="flex flex-1 flex-col">
         <DashboardTopBar
-          title="Panel global"
-          subtitle={`Supervisando ${stats.totalSites} sitios y ${stats.totalDevices} dispositivos activos.`}
-          navItems={navItems as any}
+          title={t('dashboard.admin.title', 'Panel global')}
+          subtitle={formatMessage(t('dashboard.admin.subtitle', 'Supervisando {sites} sitios y {devices} dispositivos activos.'), {
+            sites: stats.totalSites,
+            devices: stats.totalDevices,
+          })}
+          navItems={navItems}
           onMenuToggle={() => setMobileNavOpen(true)}
           actions={
             tab === "overview" ? (
@@ -159,14 +196,14 @@ export default function AdminDashboard({
                   onClick={closeCreate}
                   className="inline-flex h-11 items-center rounded-full border border-red-300 bg-white px-5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50"
                 >
-                  Cancelar
+                  {t('actions.cancel', 'Cancelar')}
                 </button>
               ) : (
                 <button
                   onClick={openCreate}
                   className="inline-flex h-11 items-center rounded-full bg-red-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
                 >
-                  <PlusIcon className="mr-2 h-4 w-4" /> Nuevo sitio
+                  <PlusIcon className="mr-2 h-4 w-4" /> {t('actions.newSite', 'Nuevo sitio')}
                 </button>
               )
             ) : null
@@ -187,17 +224,17 @@ export default function AdminDashboard({
               >
                 <div className="mb-4 rounded-2xl border border-slate-200 bg-white/70 p-4 backdrop-blur">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-slate-800">Registrar nuevo sitio</h3>
-                    <button
-                      onClick={closeCreate}
-                      className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:border-red-300 hover:text-red-600"
-                    >
-                      Cerrar
-                    </button>
-                  </div>
-                  {/* <CreateSiteForm onCreated={() => { onRefetch(); setShowCreate(false); }} /> */}
-                  <p className="text-sm text-slate-500">
-                    Integra aquí tu <code>CreateSiteForm</code>.
+                  <h3 className="text-base font-semibold text-slate-800">Registrar nuevo sitio</h3>
+                  <button
+                    onClick={closeCreate}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500 transition hover:border-red-300 hover:text-red-600"
+                  >
+                    {t('button.close', 'Cerrar')}
+                  </button>
+                </div>
+                {/* <CreateSiteForm onCreated={() => { onRefetch(); setShowCreate(false); }} /> */}
+                <p className="text-sm text-slate-500">
+                  Integra aquí tu <code>CreateSiteForm</code>.
                   </p>
                 </div>
               </div>
@@ -209,8 +246,8 @@ export default function AdminDashboard({
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                   <div>
-                    <h3 className="text-base font-semibold text-slate-900">Inventario de sitios</h3>
-                    <p className="text-sm text-slate-500">Monitorea el estado operativo y los dispositivos desplegados.</p>
+                    <h3 className="text-base font-semibold text-slate-900">{t('admin.sites.inventory', 'Inventario de sitios')}</h3>
+                    <p className="text-sm text-slate-500">{t('admin.sites.description', 'Monitorea el estado operativo y los dispositivos desplegados.')}</p>
                   </div>
                   <div className="hidden sm:block text-xs text-slate-400" />
                 </div>
@@ -219,11 +256,11 @@ export default function AdminDashboard({
                   <table className="min-w-full divide-y divide-slate-200 text-sm">
                     <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-widest text-slate-500">
                       <tr>
-                        <th className="px-6 py-3">Sitio</th>
-                        <th className="px-6 py-3">Dispositivos</th>
-                        <th className="px-6 py-3">Usuarios asignados</th>
-                        <th className="px-6 py-3">Salud</th>
-                        <th className="px-6 py-3 text-right">Acciones</th>
+                        <th className="px-6 py-3">{t('table.site', 'Sitio')}</th>
+                        <th className="px-6 py-3">{t('table.devices', 'Dispositivos')}</th>
+                        <th className="px-6 py-3">{t('table.assignees', 'Usuarios asignados')}</th>
+                        <th className="px-6 py-3">{t('table.health', 'Salud')}</th>
+                        <th className="px-6 py-3 text-right">{t('table.actions', 'Acciones')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -289,19 +326,19 @@ export default function AdminDashboard({
                                 onClick={() => openAssignUser(site)}
                                 className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
                               >
-                                Asignar usuario
+                                {t('button.assignUser', 'Asignar usuario')}
                               </button>
                               <button
                                 onClick={() => openAddDevice(site)}
                                 className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700"
                               >
-                                Agregar dispositivo
+                                {t('button.addDevice', 'Agregar dispositivo')}
                               </button>
                               <button
                                 onClick={() => openManage(site)}
                                 className="inline-flex items-center rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:border-red-300 hover:text-red-700"
                               >
-                                Gestionar
+                                {t('button.manage', 'Gestionar')}
                               </button>
                             </td>
                           </tr>
@@ -314,15 +351,29 @@ export default function AdminDashboard({
             </>
           )}
 
-          {tab === "devices" && <DevicesDirectory sites={sites} />}
+          {tab === "devices" && (
+            <>
+              {isAdmin && (
+                <TailscaleDevicesPanel
+                  devices={tailscaleDevices}
+                  loading={tailscaleLoading}
+                  error={tailscaleError}
+                  onRefresh={loadTailscaleDevices}
+                />
+              )}
+              <DevicesDirectory sites={sites} />
+            </>
+          )}
           {tab === "clients" && <ClientsDirectory sites={sites} />}
-          {tab === "settings" && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-900">Configuración de usuario</h3>
-              <p className="mt-2 text-sm text-slate-600">
-                Aquí puedes colocar preferencias del usuario (nombre, idioma, notificaciones, etc.).
-              </p>
-            </div>
+          {tab === "settings" && activeUser && (
+            <UserSettingsPanel
+              user={activeUser}
+              onLogout={onLogout}
+              onUserUpdated={(updated) => {
+                setCurrentUser(updated);
+                onUserChange(updated);
+              }}
+            />
           )}
         </main>
       </div>
@@ -332,7 +383,7 @@ export default function AdminDashboard({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <h4 className="mb-3 text-base font-semibold text-slate-800">
-              Asignar usuario a: <span className="text-blue-800">{activeSite.nombre}</span>
+              {t('admin.assignUser.title', 'Asignar usuario a:')} <span className="text-blue-800">{activeSite.nombre}</span>
             </h4>
             <AssignUserForm onAssign={doAssignUserByEmail} onClose={() => setShowAssignUser(false)} />
           </div>

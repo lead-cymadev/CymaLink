@@ -90,6 +90,57 @@ export default function Home() {
     },
   }
 
+  const featureCards = [
+    {
+      title: "Visibilidad instantánea",
+      description: "Centraliza el estado de cada instalación, sensor y alerta crítica sin perder contexto.",
+      detail:
+        "Dashboards en vivo y mapas dinámicos muestran latencia, consumo energético y salud de tu red en segundos.",
+    },
+    {
+      title: "Automatización inteligente",
+      description: "Configura flujos que responden ante incidentes, desconectan dispositivos o notifican a tu equipo.",
+      detail:
+        "Los playbooks se integran con Slack, Teams y PagerDuty, registrando cada acción para auditoría completa.",
+    },
+    {
+      title: "Confiabilidad reforzada",
+      description: "Asegura tus endpoints con baselines seguros, auditoría continua y cifrado extremo a extremo.",
+      detail:
+        "Nuestros agentes verifican firmware, certificados y accesos cada cinco minutos para garantizar continuidad operativa.",
+    },
+  ] as const
+
+  const operationsHighlights = [
+    {
+      heading: "Supervisión 360°",
+      copy: "Combina métricas de red, desempeño energético y contexto ambiental en un mismo lienzo de decisiones.",
+    },
+    {
+      heading: "Colaboración segura",
+      copy: "Comparte paneles específicos con partners o clientes sin exponer credenciales sensibles.",
+    },
+    {
+      heading: "Insights accionables",
+      copy: "Modelos predictivos reconocen patrones de degradación para que actúes antes de que un sitio caiga.",
+    },
+  ] as const
+
+  const adoptionSteps = [
+    {
+      title: "Descubre",
+      text: "Importa tus dispositivos vía CSV, API o conectores Tailscale y obtenlos mapeados en minutos.",
+    },
+    {
+      title: "Orquesta",
+      text: "Define reglas, roles y alertas inteligentes que se adaptan a tu operación y equipo.",
+    },
+    {
+      title: "Escala",
+      text: "Replica plantillas y automatizaciones en nuevos sitios con aprovisionamiento remoto y seguro.",
+    },
+  ] as const
+
   // 2. LA LÓGICA DEL TYPEWRITER SE MOVIÓ A HeroSection
 
   return (
@@ -123,9 +174,12 @@ export default function Home() {
           className="min-h-screen flex items-center justify-center px-8 -mt-20"
         >
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-balance">Empezemos</h2>
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-balance">
+              Conecta, supervisa y actúa desde un solo panel
+            </h2>
             <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto text-pretty">
-              Ingresa a tu cuenta o crea una nueva para descubrir cómo CymaLink puede transformar tu experiencia digital.
+              CymaLink centraliza tus despliegues IoT, automatiza respuestas y te ofrece contexto en tiempo real para que
+              tu operación nunca se detenga.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <motion.div whileHover={{ y: -4, scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
@@ -133,7 +187,7 @@ export default function Home() {
                   type="button"
                   size="lg"
                   
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-3 text-lg transition-all duration-300 hover:shadow-lg hover:shadow-accent/30 w-full sm:w-auto"
+                  className="bg-blue-900 hover:bg-blue-700 text-white px-8 py-3 text-lg transition-all duration-300 shadow-lg shadow-blue-900/20 w-full sm:w-auto"
                 >
                   <a href="/auth/login">Inicia sesión</a>
                 </Button>
@@ -142,9 +196,9 @@ export default function Home() {
                 <Button
                   variant="outline"
                   size="lg"
-                  className="border-primary text-primary hover:bg-primary/40 px-8 py-3 text-lg transition-all duration-300 bg-transparent w-full sm:w-auto"
+                  className="border-primary text-primary hover:bg-primary/10 px-8 py-3 text-lg transition-all duration-300 bg-transparent w-full sm:w-auto"
                 >
-                  <a href="/auth/register">Registrate</a>
+                  <a href="/auth/register">Crear cuenta</a>
                 </Button>
               </motion.div>
             </div>
@@ -161,38 +215,30 @@ export default function Home() {
           className="py-20 px-4"
         >
           <div className="max-w-6xl mx-auto">
-            <h3 className="text-3xl sm:text-4xl font-bold text-center mb-16">Texto</h3>
+            <h3 className="text-3xl sm:text-4xl font-bold text-center mb-16">
+              Visibilidad y control diseñados para equipos críticos
+            </h3>
             <motion.div
-              className="grid md:grid-cols-3 gap-8"
+              className="grid gap-8 md:grid-cols-3"
               variants={cardGridAnimation.container}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, amount: 0.2 }}
             >
-              {["Conexión Instantánea", "Colaboración Inteligente", "Seguridad Avanzada"].map((title, i) => (
+              {featureCards.map((card) => (
                 <motion.div
-                  key={i}
+                  key={card.title}
                   variants={cardGridAnimation.item}
                   whileHover={{ y: -8, scale: 1.03 }}
-                  transition={{ type: "spring", stiffness: 300 }}
+                  transition={{ type: "spring", stiffness: 280 }}
                 >
-                  <Card className="bg-card/60 backdrop-blur-sm border-border h-full transition-all duration-300 hover:shadow-xl hover:border-primary/50">
+                  <Card className="h-full border-border bg-card/70 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover:shadow-xl">
                     <CardHeader>
-                      <CardTitle className="text-card-foreground">{title}</CardTitle>
-                      <CardDescription className="text-muted-foreground">
-                        {i === 0 && "Conecta con personas y empresas al instante"}
-                        {i === 1 && "Herramientas de colaboración de última generación"}
-                        {i === 2 && "Protección de datos de nivel empresarial"}
-                      </CardDescription>
+                      <CardTitle className="text-card-foreground">{card.title}</CardTitle>
+                      <CardDescription className="text-muted-foreground">{card.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-card-foreground/80">
-                        {i === 0 &&
-                          "Nuestra tecnología avanzada permite conexiones rápidas y seguras entre usuarios."}
-                        {i === 1 && "Trabaja en equipo de manera más eficiente con nuestras herramientas inteligentes."}
-                        {i === 2 &&
-                          "Tus datos están protegidos con los más altos estándares de seguridad y encriptación."}
-                      </p>
+                      <p className="text-card-foreground/85">{card.detail}</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -206,16 +252,28 @@ export default function Home() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="py-20 px-4 bg-secondary/30"
+          className="py-20 px-4"
         >
-          <div className="max-w-4xl mx-auto text-center">
-            <h3 className="text-3xl sm:text-4xl font-bold mb-2">
-              Texto <span className="text-accent">Texto</span> Texto
-            </h3>
-            <p className="text-lg text-muted-foreground">
-              Texto
-            </p>
-          </div>
+          <motion.div
+            className="max-w-5xl mx-auto grid gap-8 rounded-3xl border border-blue-100 bg-blue-50/40 p-10 md:grid-cols-3"
+            variants={cardGridAnimation.container}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+          >
+            {operationsHighlights.map((highlight) => (
+              <motion.div
+                key={highlight.heading}
+                variants={cardGridAnimation.item}
+                className="rounded-2xl border border-white/40 bg-white/85 p-6 text-left shadow-sm"
+                whileHover={{ y: -6, scale: 1.015 }}
+                transition={{ type: "spring", stiffness: 260 }}
+              >
+                <h4 className="text-lg font-semibold text-blue-900">{highlight.heading}</h4>
+                <p className="mt-2 text-sm text-slate-600">{highlight.copy}</p>
+              </motion.div>
+            ))}
+          </motion.div>
         </motion.section>
 
         <motion.section
@@ -225,27 +283,46 @@ export default function Home() {
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="py-20 px-4"
         >
-          <div className="max-w-4xl mx-auto text-center">
-            <h3 className="text-3xl sm:text-4xl font-bold mb-6">Texto</h3>
-            <p className="text-lg sm:text-xl text-muted-foreground mb-8">
-              Texto
+          <div className="max-w-5xl mx-auto">
+            <h3 className="text-center text-3xl sm:text-4xl font-bold mb-6">
+              Implementa CymaLink en tres pasos
+            </h3>
+            <p className="text-center text-lg text-muted-foreground mb-10 max-w-3xl mx-auto">
+              Desde la importación inicial hasta la automatización completa, te acompañamos con herramientas y soporte
+              especializados para que obtengas valor desde el primer día.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="grid gap-6 md:grid-cols-3">
+              {adoptionSteps.map((step, index) => (
+                <motion.div
+                  key={step.title}
+                  className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 260 }}
+                >
+                  <span className="absolute -top-4 left-6 inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-900 text-sm font-semibold text-white shadow-lg">
+                    {index + 1}
+                  </span>
+                  <h4 className="mt-4 text-lg font-semibold text-blue-900">{step.title}</h4>
+                  <p className="mt-2 text-sm text-slate-600">{step.text}</p>
+                </motion.div>
+              ))}
+            </div>
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
               <motion.div whileHover={{ y: -4, scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
                 <Button
                   size="lg"
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-3 text-lg transition-all duration-300 hover:shadow-lg hover:shadow-accent/30 w-full sm:w-auto"
+                  className="bg-blue-900 hover:bg-blue-700 text-white px-8 py-3 text-lg transition-all duration-300 shadow-lg shadow-blue-900/20 w-full sm:w-auto"
                 >
-                  Texto
+                  Agendar demostración
                 </Button>
               </motion.div>
               <motion.div whileHover={{ y: -4, scale: 1.05 }} transition={{ type: "spring", stiffness: 300 }}>
                 <Button
                   variant="outline"
                   size="lg"
-                  className="border-primary text-primary hover:bg-primary/10 px-8 py-3 text-lg transition-all duration-300 bg-transparent w-full sm:w-auto"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-100 px-8 py-3 text-lg transition-all duration-300 w-full sm:w-auto"
                 >
-                  Contactar Ventas
+                  Hablar con un especialista
                 </Button>
               </motion.div>
             </div>
@@ -257,13 +334,15 @@ export default function Home() {
           <div className="max-w-6xl mx-auto text-muted-foreground">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-center sm:text-left">
               <div>
-                <h4 className="text-foreground font-bold mb-4">Texto</h4>
-                <p>Texto</p>
+                <h4 className="text-foreground font-bold mb-4">CymaLink</h4>
+                <p className="text-sm">
+                  Plataforma unificada para visibilidad, automatización y resiliencia de redes IoT empresariales.
+                </p>
               </div>
               {[
-                { title: "Texto", links: ["Texto", "Texto", "Texto"] },
-                { title: "Texto", links: ["Texto ", "Texto", "Texto"] },
-                { title: "Texto", links: ["Texto", "Texto", "Texto"] },
+                { title: "Producto", links: ["Monitoreo en vivo", "Alertas inteligentes", "Automatizaciones"] },
+                { title: "Recursos", links: ["Documentación", "Guías de despliegue", "Blog técnico"] },
+                { title: "Soporte", links: ["Centro de ayuda", "Estado del servicio", "Contactar equipo"] },
               ].map((section) => (
                 <div key={section.title}>
                   <h5 className="text-foreground font-semibold mb-4">{section.title}</h5>

@@ -16,19 +16,23 @@ const router = Router();
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
   const { nombre, macAddress, ipAddress, siteId } = req.body;
   const userId = (req as AuthRequest).user?.id;
+  const userRole = (req as AuthRequest).user?.rol?.toLowerCase();
 
   if (!nombre || !macAddress || !siteId) {
     return res.status(400).json({ success: false, message: 'Nombre, MAC Address y Site ID son obligatorios.' });
   }
 
   try {
-    const site = await Sites.findByPk(siteId, { include: [User] });
+    const site = await Sites.findByPk(siteId, {
+      include: [{ model: User, as: 'users', attributes: ['id'] }],
+    });
     if (!site) {
       return res.status(404).json({ success: false, message: 'El sitio especificado no existe.' });
     }
     
-    // Verificamos que el usuario que hace la petición tiene acceso al sitio
-    const userHasAccess = (site as any).Users.some((user: User) => user.id === userId);
+    const siteUsers: User[] = ((site as any).users ?? []) as User[];
+    const isAdmin = userRole === 'admin';
+    const userHasAccess = isAdmin || siteUsers.some((user: User) => user.id === userId);
     if (!userHasAccess) {
       return res.status(403).json({ success: false, message: 'Acceso denegado. No tienes permisos sobre este sitio.' });
     }
@@ -68,15 +72,21 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
 
   try {
     const raspberry = await Raspberry.findByPk(id, {
-      include: [{ model: Sites, include: [User] }]
+      include: [{
+        model: Sites,
+        as: 'site',
+        include: [{ model: User, as: 'users', attributes: ['id'] }],
+      }]
     });
 
     if (!raspberry) {
       return res.status(404).json({ success: false, message: 'Dispositivo no encontrado.' });
     }
 
-    const site = (raspberry as any).Site;
-    const userHasAccess = site.Users.some((user: User) => user.id === userId);
+    const site = (raspberry as any).site as Sites | undefined;
+    const siteUsers: User[] = ((site as any)?.users ?? []) as User[];
+    const isAdmin = (req as AuthRequest).user?.rol?.toLowerCase() === 'admin';
+    const userHasAccess = isAdmin || siteUsers.some((user: User) => user.id === userId);
 
     if (!userHasAccess) {
       return res.status(403).json({ success: false, message: 'Acceso denegado. No tienes permisos para modificar este dispositivo.' });
@@ -105,15 +115,21 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
 
   try {
     const raspberry = await Raspberry.findByPk(id, {
-      include: [{ model: Sites, include: [User] }]
+      include: [{
+        model: Sites,
+        as: 'site',
+        include: [{ model: User, as: 'users', attributes: ['id'] }],
+      }]
     });
 
     if (!raspberry) {
       return res.status(404).json({ success: false, message: 'Dispositivo no encontrado.' });
     }
 
-    const site = (raspberry as any).Site;
-    const userHasAccess = site.Users.some((user: User) => user.id === userId);
+    const site = (raspberry as any).site as Sites | undefined;
+    const siteUsers: User[] = ((site as any)?.users ?? []) as User[];
+    const isAdmin = (req as AuthRequest).user?.rol?.toLowerCase() === 'admin';
+    const userHasAccess = isAdmin || siteUsers.some((user: User) => user.id === userId);
 
     if (!userHasAccess) {
       return res.status(403).json({ success: false, message: 'Acceso denegado. No tienes permisos para eliminar este dispositivo.' });
@@ -130,4 +146,3 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
 });
 
 export default router;
-

@@ -43,8 +43,9 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.use(cors(corsOptions));
-// ⚠️ Preflight para TODAS las rutas:
+// ⚠️ Preflight explícito para que OPTIONS funcione en rutas comunes
 app.options('/', cors(corsOptions));
+app.options(/^\/api(?:\/.*)?$/, cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -70,6 +71,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 // ✅ TODAS las rutas de la API bajo /api
 app.use('/api', apiRouter);
 
+// Opcional: compatibilidad directa cuando el proxy ya agrega /api
+if (process.env.ENABLE_LEGACY_ROUTES === 'true') {
+  log.warning('⚠️ ENABLE_LEGACY_ROUTES=true — exponiendo endpoints sin prefijo /api');
+  app.use('/', apiRouter);
+}
+
 // 404
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Not found', path: req.originalUrl });
@@ -86,8 +93,22 @@ app.listen(Number(PORT), '0.0.0.0', async () => {
   try {
     await sequelize.authenticate();
     log.success('✅ DB conectada');
-    await sequelize.sync({ alter: true });
-    const base = process.env.TAILSCALE_SHORT_URL || process.env.TAILSCALE_COMPLETE_URL || `http://pruebas`;
+
+    const shouldAutoSync = (process.env.SEQUELIZE_AUTO_SYNC ?? '').toLowerCase() === 'true'
+      || process.env.NODE_ENV === 'development';
+    if (shouldAutoSync) {
+      const rawSyncMode = (process.env.SEQUELIZE_SYNC_MODE
+        ?? (process.env.NODE_ENV === 'development' ? 'alter' : '')).toLowerCase();
+      const alterSync = rawSyncMode === 'alter';
+      await sequelize.sync({ alter: alterSync });
+      log.success(`🗃️ Modelos sincronizados (mode=${alterSync ? 'alter' : 'safe'})`);
+    } else {
+      log.info('🔒 Sincronización automática deshabilitada. Ejecuta migraciones manualmente.');
+    }
+
+    const base = process.env.TAILSCALE_SHORT_URL
+      || process.env.TAILSCALE_COMPLETE_URL
+      || 'http://pruebas';
     log.success(`🚀 API en ${base}:${PORT}`);
     log.info(`📖 Swagger: ${base}:${PORT}/api-docs`);
     log.info(`🌐 CORS allowlist: ${ALLOWED_ORIGINS.join(', ')}`);

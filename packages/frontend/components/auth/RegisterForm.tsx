@@ -1,5 +1,6 @@
 "use client"
 import { useState } from "react"
+import { resolveBackendBaseUrl } from "@/lib/api/apiConfig"
 
 export default function RegisterForm() {
   const [nombre, setNombre] = useState("")
@@ -9,9 +10,6 @@ export default function RegisterForm() {
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  // Configuración de la URL base
-  const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_SHORT_URL!;
-  
   // Validaciones
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -50,18 +48,24 @@ export default function RegisterForm() {
     setMessage("🔄 Creando cuenta...")
 
     try {
-      console.log("Registrando usuario en:", `${API_BASE_URL}/api/auth/register`)
-      
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const backendBase = resolveBackendBaseUrl();
+      const res = await fetch(`${backendBase.replace(/\/+$/, '')}/api/auth/register`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ nombre, email, password }) // 👈 ahora enviamos nombre
+        body: JSON.stringify({ nombre, email, password })
       })
 
-      const data = await res.json()
-      console.log("Respuesta del servidor:", data)
+      const text = await res.text()
+      let data: any = {}
+      if (text) {
+        try {
+          data = JSON.parse(text)
+        } catch {
+          data = {}
+        }
+      }
 
       if (res.ok) {
         setMessage("✅ Usuario creado correctamente")
@@ -71,17 +75,8 @@ export default function RegisterForm() {
         setEmail("")
         setPassword("")
         setConfirmPassword("")
-
-        // Opcional: Auto-login después del registro
-        if (data.token) {
-          localStorage.setItem("token", data.token)
-          if (data.user) {
-            localStorage.setItem("user", JSON.stringify(data.user))
-          }
-        }
-
       } else {
-        const errorMessage = data.error || data.message || 'Error desconocido'
+        const errorMessage = data?.error || data?.message || 'Error desconocido'
         setMessage(`❌ ${errorMessage}`)
       }
 
@@ -185,7 +180,7 @@ export default function RegisterForm() {
         <button 
           type="submit" 
           disabled={isLoading || !nombre || !email || !password || !confirmPassword || !validateEmail(email) || !validatePassword(password) || password !== confirmPassword}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 disabled:cursor-not-allowed"
+          className="w-full rounded-md bg-blue-900 py-2 px-4 font-medium text-white transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
         >
           {isLoading ? (
             <span className="flex items-center justify-center">

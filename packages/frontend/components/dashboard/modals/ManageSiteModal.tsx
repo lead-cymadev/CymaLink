@@ -1,6 +1,6 @@
 // components/dashboard/modals/ManageSiteModal.tsx
 'use client';
-import { Site, Device } from '@/lib/api/ApiService';
+import type { Site, Device } from '../common/types';
 import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 export default function ManageSiteModal({

@@ -1,12 +1,12 @@
 // components/dashboard/DashboardClient.tsx
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Cookies from "js-cookie";
+import React, { useCallback, useEffect, useState } from "react";
 import { LoadingSpinner, ErrorMessage } from "./common/ui";
 import { resolveUserRole } from "./common/helpers";
 import type { User, Site, DashboardStats } from "./common/types";
-import ApiService from "@/lib/api/ApiService";
+import { apiService } from "@/lib/api/ApiService";
+import { LanguageProvider, inferLanguage, type Language } from "@/lib/i18n";
 
 import AdminDashboard from "./admin/AdminDashboard";
 import UserDashboard from "./user/UserDashboard";
@@ -17,12 +17,10 @@ function useDashboard(user: User | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const apiService = useMemo(() => new ApiService(process.env.NEXT_PUBLIC_API_BASE_URL ?? ""), []);
   const isAdmin = resolveUserRole(user) === "admin";
 
   const redirectToLogin = useCallback(() => {
-    Cookies.remove("access_token");
-    localStorage.removeItem("user");
+    apiService.logout();
     window.location.href = "/auth/login";
   }, []);
 
@@ -36,7 +34,10 @@ function useDashboard(user: User | null) {
       setLoading(true);
       setError(null);
 
-      const [sitesData, statsData] = await Promise.all([isAdmin ? apiService.getAllSitesForAdmin() : apiService.getSitesForUser(), apiService.getDashboardStats()]);
+      const [sitesData, statsData] = await Promise.all([
+        isAdmin ? apiService.getAllSitesForAdmin() : apiService.getSitesForUser(),
+        apiService.getDashboardStats(),
+      ]);
 
       setSites(Array.isArray(sitesData) ? sitesData : []);
       setStats(statsData ?? null);
@@ -52,7 +53,7 @@ function useDashboard(user: User | null) {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, apiService, redirectToLogin]);
+  }, [user, isAdmin, redirectToLogin]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -63,39 +64,89 @@ function useDashboard(user: User | null) {
 
 export default function DashboardClient() {
   const [user, setUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [language, setLanguage] = useState<Language>("es");
 
   const handleLogout = useCallback(() => {
-    Cookies.remove("access_token");
-    localStorage.removeItem("user");
+    apiService.logout();
     window.location.href = "/auth/login";
   }, []);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const token = Cookies.get("access_token");
-    if (storedUser && token) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Error al parsear datos de usuario, cerrando sesión.", e);
-        handleLogout();
+    const init = async () => {
+      const tokenPresent = apiService.isAuthenticated();
+      if (!tokenPresent) {
+        window.location.href = "/auth/login";
+        return;
       }
-    } else {
-      window.location.href = "/auth/login";
-    }
-  }, [handleLogout]);
+
+      try {
+        const profile = await apiService.getProfile();
+        setUser(profile as User);
+        setLanguage(inferLanguage({
+          preferredLanguage: (profile as User).preferredLanguage,
+          timezone: (profile as User).timezone,
+        }));
+      } catch (error) {
+        const storedUser = apiService.getStoredUser<User>();
+        if (storedUser) {
+          setUser(storedUser);
+          setLanguage(inferLanguage({
+            preferredLanguage: storedUser.preferredLanguage,
+            timezone: storedUser.timezone,
+          }));
+          return;
+        }
+
+        console.error("No se pudo cargar el perfil del usuario:", error);
+        window.location.href = "/auth/login";
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+
+    init();
+  }, []);
 
   const { sites, stats, loading, error, refetch } = useDashboard(user);
   const resolvedRole = resolveUserRole(user);
   const isAdmin = resolvedRole === "admin";
 
-  if (!user || loading) return <LoadingSpinner />;
-  if (error) return <ErrorMessage message={error} onRetry={refetch} />;
-  if (!stats) return <ErrorMessage message={"No se pudieron cargar las estadísticas del dashboard."} onRetry={refetch} />;
+  const handleUserChange = (updated: User) => {
+    setUser(updated);
+    setLanguage(inferLanguage({ preferredLanguage: updated.preferredLanguage, timezone: updated.timezone }));
+  };
 
-  return isAdmin ? (
-    <AdminDashboard user={user} sites={sites} stats={stats} onLogout={handleLogout} onRefetch={refetch} />
-  ) : (
-    <UserDashboard user={user} sites={sites} onLogout={handleLogout} onRefetch={refetch} />
+  const renderContent = () => {
+    if (loadingUser || !user || loading) return <LoadingSpinner />;
+    if (error) return <ErrorMessage message={error} onRetry={refetch} />;
+    if (!stats) {
+      return <ErrorMessage message={"No se pudieron cargar las estadísticas del dashboard."} onRetry={refetch} />;
+    }
+
+    return isAdmin ? (
+      <AdminDashboard
+        user={user}
+        sites={sites}
+        stats={stats}
+        onLogout={handleLogout}
+        onRefetch={refetch}
+        onUserChange={handleUserChange}
+      />
+    ) : (
+      <UserDashboard
+        user={user}
+        sites={sites}
+        onLogout={handleLogout}
+        onRefetch={refetch}
+        onUserChange={handleUserChange}
+      />
+    );
+  };
+
+  return (
+    <LanguageProvider language={language}>
+      {renderContent()}
+    </LanguageProvider>
   );
 }
